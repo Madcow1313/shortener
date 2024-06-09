@@ -18,7 +18,7 @@ type SimpleServer struct {
 	URLmap map[string]string
 }
 
-func shortenUrl() string {
+func shortenURL() string {
 	letters := []rune("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ")
 	result := make([]rune, 6)
 	for i := 0; i < 6; i++ {
@@ -34,7 +34,6 @@ func InitServer(host, baseURL string) Server {
 
 func handleMainPage(s *SimpleServer, router *http.ServeMux) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		fmt.Println("mainpage")
 		if r.Method != "POST" {
 			w.WriteHeader(http.StatusBadRequest)
 			return
@@ -49,21 +48,18 @@ func handleMainPage(s *SimpleServer, router *http.ServeMux) http.HandlerFunc {
 			w.WriteHeader(http.StatusBadRequest)
 			return
 		}
-		str := shortenUrl()
+		str := shortenURL()
 		s.URLmap[str] = string(b)
-		fmt.Println(string(b))
-		router.HandleFunc("/"+str, handleGetId(s, string(b)))
+		router.HandleFunc("/"+str, handleGetID(s, string(b)))
 		w.WriteHeader(http.StatusCreated)
 		w.Header().Set("Content-Type", "text/plain")
 		respBody := s.Host + "/" + s.BaseURL + str
 		w.Header().Set("Content-Length", strconv.FormatInt(int64(len(respBody)), 10))
 		w.Write([]byte(respBody))
-		fmt.Println(s.URLmap)
 	}
 }
 
-func handleGetId(s *SimpleServer, path string) http.HandlerFunc {
-	fmt.Println("id", path)
+func handleGetID(s *SimpleServer, path string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Add("Location", path)
 		w.WriteHeader(http.StatusTemporaryRedirect)
