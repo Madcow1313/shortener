@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"net/http"
 
-	handlers "github.com/Madcow1313/shortener/internal/handlers"
+	handlers "shortener/internal/handlers"
 )
 
 type Server interface {
