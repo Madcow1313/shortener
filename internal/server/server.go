@@ -50,7 +50,7 @@ func handleMainPage(s *SimpleServer, router *http.ServeMux) http.HandlerFunc {
 		}
 		str := shortenURL()
 		s.URLmap[str] = string(b)
-		router.HandleFunc("/"+str, handleGetID(s, "/"+str))
+		router.HandleFunc("/"+str, handleGetID(s, "/"+str, string(b)))
 		w.WriteHeader(http.StatusCreated)
 		w.Header().Set("Content-Type", "text/plain")
 		respBody := "http://" + s.Host + "/" + s.BaseURL + str
@@ -59,9 +59,9 @@ func handleMainPage(s *SimpleServer, router *http.ServeMux) http.HandlerFunc {
 	}
 }
 
-func handleGetID(s *SimpleServer, path string) http.HandlerFunc {
+func handleGetID(s *SimpleServer, path string, origin string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Add("Location", path)
+		w.Header().Add("Location", origin)
 		w.WriteHeader(http.StatusTemporaryRedirect)
 	}
 }
