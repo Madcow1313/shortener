@@ -50,10 +50,10 @@ func handleMainPage(s *SimpleServer, router *http.ServeMux) http.HandlerFunc {
 		}
 		str := shortenURL()
 		s.URLmap[str] = string(b)
-		router.HandleFunc("/"+str, handleGetID(s, string(b)))
+		router.HandleFunc("/"+str, handleGetID(s, "/"+str))
 		w.WriteHeader(http.StatusCreated)
 		w.Header().Set("Content-Type", "text/plain")
-		respBody := s.Host + "/" + s.BaseURL + str
+		respBody := "http://" + s.Host + "/" + s.BaseURL + str
 		w.Header().Set("Content-Length", strconv.FormatInt(int64(len(respBody)), 10))
 		w.Write([]byte(respBody))
 	}
