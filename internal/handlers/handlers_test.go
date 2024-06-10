@@ -58,6 +58,7 @@ func TestHandleMainPage(t *testing.T) {
 			f := HandleMainPage(&SimpleServer{Host: "213", URLmap: map[string]string{}}, &http.ServeMux{})
 			f(w, request)
 			res := w.Result()
+			defer res.Body.Close()
 			if res.StatusCode != tt.want.code {
 				t.Errorf("Error: wrong response - want %v, got %v in %v", tt.want.code, res.StatusCode, tt.name)
 			}
@@ -74,6 +75,7 @@ func TestHandleMainPage(t *testing.T) {
 			f := HandleMainPage(&SimpleServer{Host: "213", URLmap: map[string]string{}}, &http.ServeMux{})
 			f(w, request)
 			res := w.Result()
+			defer res.Body.Close()
 			if res.StatusCode != tt.want.code {
 				t.Errorf("Error: wrong response - want %v, got %v in %v", tt.want.code, res.StatusCode, tt.name)
 			}
@@ -138,6 +140,7 @@ func TestHandleGetID(t *testing.T) {
 			f := HandleGetID(&s, tt.URL, s.URLmap[tt.URL])
 			f(w, request)
 			res := w.Result()
+			defer res.Body.Close()
 			if res.StatusCode != tt.want.code {
 				t.Errorf("Error: wrong response code - want %v, got %v in %v", tt.want.code, res.StatusCode, tt.name)
 			}
