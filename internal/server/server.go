@@ -3,8 +3,9 @@ package server
 import (
 	"fmt"
 	"net/http"
+	"shortener/internal/handlers"
 
-	handlers "shortener/internal/handlers"
+	"github.com/go-chi/chi/v5"
 )
 
 type Server interface {
@@ -22,14 +23,14 @@ func InitServer(host, baseURL string) Server {
 }
 
 func (s SimpleServer) RunServer() {
-	router := http.NewServeMux()
+	// router := http.NewServeMux()
 
+	router := chi.NewRouter()
 	router.HandleFunc("/", handlers.HandleMainPage(&handlers.SimpleServer{
 		Host:    s.Host,
 		BaseURL: s.BaseURL,
 		URLmap:  s.URLmap,
 	}, router))
-	// router.HandleFunc("/{id}/", handleGetId(&s))
 
 	err := http.ListenAndServe(s.Host, router)
 	if err != nil {

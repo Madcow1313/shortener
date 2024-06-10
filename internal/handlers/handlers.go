@@ -5,6 +5,8 @@ import (
 	"math/rand"
 	"net/http"
 	"strconv"
+
+	"github.com/go-chi/chi/v5"
 )
 
 type SimpleServer struct {
@@ -23,7 +25,7 @@ func shortenURL() string {
 	return string(result)
 }
 
-func HandleMainPage(s *SimpleServer, router *http.ServeMux) http.HandlerFunc {
+func HandleMainPage(s *SimpleServer, router *chi.Mux) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != "POST" {
 			w.WriteHeader(http.StatusBadRequest)
@@ -41,7 +43,7 @@ func HandleMainPage(s *SimpleServer, router *http.ServeMux) http.HandlerFunc {
 		}
 		str := shortenURL()
 		s.URLmap[str] = string(b)
-		router.HandleFunc("/"+str, HandleGetID(s, "/"+str, string(b)))
+		router.Get("/"+str, HandleGetID(s, "/"+str, string(b)))
 		w.WriteHeader(http.StatusCreated)
 		w.Header().Set("Content-Type", "text/plain")
 		respBody := "http://" + s.Host + "/" + s.BaseURL + str

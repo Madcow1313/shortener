@@ -6,6 +6,8 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
+
+	"github.com/go-chi/chi/v5"
 )
 
 func TestHandleMainPage(t *testing.T) {
@@ -55,7 +57,7 @@ func TestHandleMainPage(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			request := httptest.NewRequest(http.MethodPost, "/", strings.NewReader("google.com"))
 			w := httptest.NewRecorder()
-			f := HandleMainPage(&SimpleServer{Host: "213", URLmap: map[string]string{}}, &http.ServeMux{})
+			f := HandleMainPage(&SimpleServer{Host: "213", URLmap: map[string]string{}}, chi.NewRouter())
 			f(w, request)
 			res := w.Result()
 			defer res.Body.Close()
@@ -72,7 +74,7 @@ func TestHandleMainPage(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			request := httptest.NewRequest(tt.method, "/", strings.NewReader("google.com"))
 			w := httptest.NewRecorder()
-			f := HandleMainPage(&SimpleServer{Host: "213", URLmap: map[string]string{}}, &http.ServeMux{})
+			f := HandleMainPage(&SimpleServer{Host: "213", URLmap: map[string]string{}}, chi.NewRouter())
 			f(w, request)
 			res := w.Result()
 			defer res.Body.Close()
