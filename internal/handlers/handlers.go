@@ -43,16 +43,16 @@ func HandleMainPage(s *SimpleServer, router *chi.Mux) http.HandlerFunc {
 		}
 		str := shortenURL()
 		s.URLmap[str] = string(b)
-		var pathID string
+		var baseURL string
 		if s.BaseURL != "/" {
-			pathID = s.BaseURL + "/"
+			baseURL = s.BaseURL + "/"
 		} else {
-			pathID = s.BaseURL
+			baseURL = ""
 		}
-		router.Get(pathID+str, HandleGetID(s, "/"+str, string(b)))
+		router.Get("/"+baseURL+str, HandleGetID(s, "/"+str, string(b)))
 		w.WriteHeader(http.StatusCreated)
 		w.Header().Set("Content-Type", "text/plain")
-		respBody := "http://" + s.Host + pathID + str
+		respBody := "http://" + s.Host + "/" + baseURL + str
 		w.Header().Set("Content-Length", strconv.FormatInt(int64(len(respBody)), 10))
 		w.Write([]byte(respBody))
 	}
