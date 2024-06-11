@@ -57,7 +57,7 @@ func TestHandleMainPage(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			request := httptest.NewRequest(http.MethodPost, "/", strings.NewReader("google.com"))
 			w := httptest.NewRecorder()
-			f := HandleMainPage(&SimpleServer{Host: "213", URLmap: map[string]string{}}, chi.NewRouter())
+			f := HandleMainPage(&SimpleServer{Host: "213", BaseURL: "/", URLmap: map[string]string{}}, chi.NewRouter())
 			f(w, request)
 			res := w.Result()
 			defer res.Body.Close()
@@ -74,7 +74,7 @@ func TestHandleMainPage(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			request := httptest.NewRequest(tt.method, "/", strings.NewReader("google.com"))
 			w := httptest.NewRecorder()
-			f := HandleMainPage(&SimpleServer{Host: "213", URLmap: map[string]string{}}, chi.NewRouter())
+			f := HandleMainPage(&SimpleServer{Host: "213", BaseURL: "/", URLmap: map[string]string{}}, chi.NewRouter())
 			f(w, request)
 			res := w.Result()
 			defer res.Body.Close()
@@ -92,6 +92,7 @@ func TestHandleGetID(t *testing.T) {
 			"second": "ya.ru",
 			"third":  "http://example.com",
 		},
+		BaseURL: "/",
 	}
 	type want struct {
 		code     int
