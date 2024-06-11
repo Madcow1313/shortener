@@ -23,8 +23,6 @@ func InitServer(host, baseURL string) Server {
 }
 
 func (s SimpleServer) RunServer() {
-	// router := http.NewServeMux()
-
 	router := chi.NewRouter()
 	fmt.Println(s.Host, s.BaseURL)
 	router.HandleFunc("/", handlers.HandleMainPage(&handlers.SimpleServer{
