@@ -1,8 +1,12 @@
 package main
 
-import "shortener/internal/server"
+import (
+	"shortener/internal/server"
+)
 
 func main() {
-	serv := server.InitServer("localhost:8080", "")
+	var c config
+	c.Set()
+	serv := server.InitServer(c.Host, c.BaseURL)
 	serv.RunServer()
 }

@@ -26,7 +26,7 @@ func (s SimpleServer) RunServer() {
 	// router := http.NewServeMux()
 
 	router := chi.NewRouter()
-	router.HandleFunc("/", handlers.HandleMainPage(&handlers.SimpleServer{
+	router.HandleFunc("/"+s.BaseURL, handlers.HandleMainPage(&handlers.SimpleServer{
 		Host:    s.Host,
 		BaseURL: s.BaseURL,
 		URLmap:  s.URLmap,
