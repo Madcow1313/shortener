@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"net/http"
 	"shortener/internal/handlers"
+	"shortener/internal/mylogger"
 
 	"github.com/go-chi/chi/v5"
 )
@@ -24,12 +25,12 @@ func InitServer(host, baseURL string) Server {
 
 func (s SimpleServer) RunServer() {
 	router := chi.NewRouter()
-	fmt.Println(s.Host, s.BaseURL)
-	router.HandleFunc("/", handlers.HandleMainPage(&handlers.SimpleServer{
+	mylogger.Initialize("INFO")
+	router.HandleFunc("/", mylogger.LogRequest(handlers.HandleMainPage(&handlers.SimpleServer{
 		Host:    s.Host,
 		BaseURL: s.BaseURL,
 		URLmap:  s.URLmap,
-	}, router))
+	}, router)))
 
 	err := http.ListenAndServe(s.Host, router)
 	if err != nil {

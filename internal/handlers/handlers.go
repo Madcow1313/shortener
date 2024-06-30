@@ -4,6 +4,7 @@ import (
 	"io"
 	"math/rand"
 	"net/http"
+	"shortener/internal/mylogger"
 	"strconv"
 
 	"github.com/go-chi/chi/v5"
@@ -47,7 +48,7 @@ func HandleMainPage(s *SimpleServer, router *chi.Mux) http.HandlerFunc {
 		if s.BaseURL != "" {
 			baseURL = s.BaseURL + "/"
 		}
-		router.Get("/"+baseURL+str, HandleGetID(s, "/"+str, string(b)))
+		router.Get("/"+baseURL+str, mylogger.LogRequest(HandleGetID(s, "/"+str, string(b))))
 		w.WriteHeader(http.StatusCreated)
 		w.Header().Set("Content-Type", "text/plain")
 		respBody := "http://" + s.Host + "/" + baseURL + str
