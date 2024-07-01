@@ -153,3 +153,46 @@ func TestHandleGetID(t *testing.T) {
 		})
 	}
 }
+
+func TestHandleApiShorten(t *testing.T) {
+	type want struct {
+		code     int
+		response string
+	}
+	positiveTests := []struct {
+		name string
+		want want
+	}{
+		{
+			name: "positive test 1",
+			want: want{
+				code: 201,
+			},
+		},
+		{
+			name: "positive test 2",
+			want: want{
+				code: 201,
+			},
+		},
+	}
+	for _, tt := range positiveTests {
+		t.Run(tt.name, func(t *testing.T) {
+			request := httptest.NewRequest(http.MethodPost, "/", strings.NewReader(`
+			{
+  				"url": "https://practicum.yandex.ru"
+			} `))
+			w := httptest.NewRecorder()
+			f := HandleApiShorten(&SimpleServer{Host: "213", BaseURL: "/", URLmap: map[string]string{}}, chi.NewRouter())
+			f(w, request)
+			res := w.Result()
+			defer res.Body.Close()
+			if res.StatusCode != tt.want.code {
+				t.Errorf("Error: wrong response - want %v, got %v in %v", tt.want.code, res.StatusCode, tt.name)
+			}
+			if res.ContentLength == 0 {
+				t.Errorf("Error: no body in response")
+			}
+		})
+	}
+}

@@ -32,6 +32,12 @@ func (s SimpleServer) RunServer() {
 		URLmap:  s.URLmap,
 	}, router)))
 
+	router.HandleFunc("/api/shorten", mylogger.LogRequest(handlers.HandleApiShorten(&handlers.SimpleServer{
+		Host:    s.Host,
+		BaseURL: s.BaseURL,
+		URLmap:  s.URLmap,
+	}, router)))
+
 	err := http.ListenAndServe(s.Host, router)
 	if err != nil {
 		fmt.Println(fmt.Errorf("can't run server: %w", err))

@@ -1,6 +1,8 @@
 package handlers
 
 import (
+	"encoding/json"
+	"fmt"
 	"io"
 	"math/rand"
 	"net/http"
@@ -14,6 +16,10 @@ type SimpleServer struct {
 	Host,
 	BaseURL string
 	URLmap map[string]string
+}
+
+type DataJson struct {
+	URL string `json:"url"`
 }
 
 func shortenURL() string {
@@ -61,5 +67,54 @@ func HandleGetID(s *SimpleServer, path string, origin string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Add("Location", origin)
 		w.WriteHeader(http.StatusTemporaryRedirect)
+	}
+}
+
+func HandleApiShorten(s *SimpleServer, router *chi.Mux) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != "POST" {
+			w.WriteHeader(http.StatusBadRequest)
+			return
+		}
+		err := r.ParseForm()
+		if err != nil {
+			fmt.Println(err)
+			w.WriteHeader(http.StatusBadRequest)
+			return
+		}
+		b, err := io.ReadAll(r.Body)
+		if err != nil {
+			w.WriteHeader(http.StatusBadRequest)
+			return
+		}
+
+		var d DataJson
+		err = json.Unmarshal(b, &d)
+		if err != nil {
+			fmt.Println(err)
+			w.WriteHeader(http.StatusBadRequest)
+			return
+		}
+		str := shortenURL()
+		s.URLmap[str] = d.URL
+		var baseURL string
+		if s.BaseURL != "" {
+			baseURL = s.BaseURL + "/"
+		}
+		router.Get("/"+baseURL+str, mylogger.LogRequest(HandleGetID(s, "/"+str, string(b))))
+		w.Header().Set("Content-Type", "application/json")
+
+		res := map[string]string{
+			"result": "http://" + s.Host + "/" + baseURL + str,
+		}
+		respBody, err := json.MarshalIndent(res, "", "	")
+		if err != nil {
+			w.WriteHeader(http.StatusBadRequest)
+			return
+		}
+		// respBody := "http://" + s.Host + "/" + baseURL + string(res)
+		w.Header().Set("Content-Length", strconv.FormatInt(int64(len(respBody)), 10))
+		w.WriteHeader(http.StatusCreated)
+		w.Write([]byte(respBody))
 	}
 }
