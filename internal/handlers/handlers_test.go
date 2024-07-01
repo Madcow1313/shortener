@@ -183,7 +183,7 @@ func TestHandleApiShorten(t *testing.T) {
   				"url": "https://practicum.yandex.ru"
 			} `))
 			w := httptest.NewRecorder()
-			f := HandleApiShorten(&SimpleServer{Host: "213", BaseURL: "/", URLmap: map[string]string{}}, chi.NewRouter())
+			f := HandleAPIShorten(&SimpleServer{Host: "213", BaseURL: "/", URLmap: map[string]string{}}, chi.NewRouter())
 			f(w, request)
 			res := w.Result()
 			defer res.Body.Close()

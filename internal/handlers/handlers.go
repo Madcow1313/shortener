@@ -18,7 +18,7 @@ type SimpleServer struct {
 	URLmap map[string]string
 }
 
-type DataJson struct {
+type DataJSON struct {
 	URL string `json:"url"`
 }
 
@@ -70,7 +70,7 @@ func HandleGetID(s *SimpleServer, path string, origin string) http.HandlerFunc {
 	}
 }
 
-func HandleApiShorten(s *SimpleServer, router *chi.Mux) http.HandlerFunc {
+func HandleAPIShorten(s *SimpleServer, router *chi.Mux) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != "POST" {
 			w.WriteHeader(http.StatusBadRequest)
@@ -88,7 +88,7 @@ func HandleApiShorten(s *SimpleServer, router *chi.Mux) http.HandlerFunc {
 			return
 		}
 
-		var d DataJson
+		var d DataJSON
 		err = json.Unmarshal(b, &d)
 		if err != nil {
 			fmt.Println(err)
@@ -101,7 +101,7 @@ func HandleApiShorten(s *SimpleServer, router *chi.Mux) http.HandlerFunc {
 		if s.BaseURL != "" {
 			baseURL = s.BaseURL + "/"
 		}
-		router.Get("/"+baseURL+str, mylogger.LogRequest(HandleGetID(s, "/"+str, string(b))))
+		router.Get("/"+baseURL+str, mylogger.LogRequest(HandleGetID(s, "/"+str, d.URL)))
 		w.Header().Set("Content-Type", "application/json")
 
 		res := map[string]string{
