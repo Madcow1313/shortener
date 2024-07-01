@@ -3,6 +3,7 @@ package server
 import (
 	"fmt"
 	"net/http"
+	"shortener/internal/compressor"
 	"shortener/internal/handlers"
 	"shortener/internal/mylogger"
 
@@ -32,11 +33,12 @@ func (s SimpleServer) RunServer() {
 		URLmap:  s.URLmap,
 	}, router)))
 
-	router.HandleFunc("/api/shorten", mylogger.LogRequest(handlers.HandleAPIShorten(&handlers.SimpleServer{
-		Host:    s.Host,
-		BaseURL: s.BaseURL,
-		URLmap:  s.URLmap,
-	}, router)))
+	router.HandleFunc("/api/shorten", compressor.Decompress(compressor.Compress(
+		mylogger.LogRequest(handlers.HandleAPIShorten(&handlers.SimpleServer{
+			Host:    s.Host,
+			BaseURL: s.BaseURL,
+			URLmap:  s.URLmap,
+		}, router)))))
 
 	err := http.ListenAndServe(s.Host, router)
 	if err != nil {
