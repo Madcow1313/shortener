@@ -31,7 +31,7 @@ func (grw *GzipResponseWriter) WriteHeader(statusCode int) {
 	grw.ResponseData.Status = statusCode
 }
 
-func (grw *GzipReader) NewGzipReader(r io.ReadCloser) (*GzipReader, error) {
+func (gr *GzipReader) NewGzipReader(r io.ReadCloser) (*GzipReader, error) {
 	reader, err := gzip.NewReader(r)
 	if err != nil {
 		return nil, err
@@ -65,6 +65,7 @@ func Decompress(h http.HandlerFunc) http.HandlerFunc {
 			h(w, r)
 			return
 		}
+		defer gzr.Close()
 		r.Body = reader.zr
 		h(w, r)
 	}
