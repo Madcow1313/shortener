@@ -28,6 +28,9 @@ func (grw *GzipResponseWriter) Write(b []byte) (int, error) {
 
 func (grw *GzipResponseWriter) WriteHeader(statusCode int) {
 	grw.ResponseWriter.WriteHeader(statusCode)
+	if statusCode < 300 {
+		grw.Header().Set("Content-Encoding", "gzip")
+	}
 	grw.ResponseData.Status = statusCode
 }
 
@@ -83,7 +86,6 @@ func Compress(h http.HandlerFunc) http.HandlerFunc {
 			ResponseWriter: w,
 			ResponseData:   &mylogger.ResponseData{},
 		}
-		w.Header().Set("Content-Encoding", "gzip")
 		h(&grw, r)
 	}
 }
