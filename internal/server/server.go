@@ -3,7 +3,9 @@ package server
 import (
 	"fmt"
 	"net/http"
+	"shortener/internal/compressor"
 	"shortener/internal/handlers"
+	"shortener/internal/mylogger"
 
 	"github.com/go-chi/chi/v5"
 )
@@ -24,12 +26,20 @@ func InitServer(host, baseURL string) Server {
 
 func (s SimpleServer) RunServer() {
 	router := chi.NewRouter()
-	fmt.Println(s.Host, s.BaseURL)
-	router.HandleFunc("/", handlers.HandleMainPage(&handlers.SimpleServer{
-		Host:    s.Host,
-		BaseURL: s.BaseURL,
-		URLmap:  s.URLmap,
-	}, router))
+	mylogger.Initialize("INFO")
+	router.HandleFunc("/", compressor.Decompress(compressor.Compress(
+		mylogger.LogRequest(handlers.HandleMainPage(&handlers.SimpleServer{
+			Host:    s.Host,
+			BaseURL: s.BaseURL,
+			URLmap:  s.URLmap,
+		}, router)))))
+
+	router.HandleFunc("/api/shorten", compressor.Decompress(compressor.Compress(
+		mylogger.LogRequest(handlers.HandleAPIShorten(&handlers.SimpleServer{
+			Host:    s.Host,
+			BaseURL: s.BaseURL,
+			URLmap:  s.URLmap,
+		}, router)))))
 
 	err := http.ListenAndServe(s.Host, router)
 	if err != nil {
