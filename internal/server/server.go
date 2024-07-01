@@ -27,11 +27,12 @@ func InitServer(host, baseURL string) Server {
 func (s SimpleServer) RunServer() {
 	router := chi.NewRouter()
 	mylogger.Initialize("INFO")
-	router.HandleFunc("/", mylogger.LogRequest(handlers.HandleMainPage(&handlers.SimpleServer{
-		Host:    s.Host,
-		BaseURL: s.BaseURL,
-		URLmap:  s.URLmap,
-	}, router)))
+	router.HandleFunc("/", compressor.Decompress(compressor.Compress(
+		mylogger.LogRequest(handlers.HandleMainPage(&handlers.SimpleServer{
+			Host:    s.Host,
+			BaseURL: s.BaseURL,
+			URLmap:  s.URLmap,
+		}, router)))))
 
 	router.HandleFunc("/api/shorten", compressor.Decompress(compressor.Compress(
 		mylogger.LogRequest(handlers.HandleAPIShorten(&handlers.SimpleServer{
