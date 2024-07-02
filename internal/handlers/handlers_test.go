@@ -4,6 +4,7 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	server "shortener/internal/server/serverTypes"
 	"strings"
 	"testing"
 
@@ -57,7 +58,7 @@ func TestHandleMainPage(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			request := httptest.NewRequest(http.MethodPost, "/", strings.NewReader("google.com"))
 			w := httptest.NewRecorder()
-			f := HandleMainPage(&SimpleServer{Host: "213", BaseURL: "/", URLmap: map[string]string{}}, chi.NewRouter())
+			f := HandleMainPage(&server.SimpleServer{Host: "213", BaseURL: "/", URLmap: map[string]string{}}, chi.NewRouter())
 			f(w, request)
 			res := w.Result()
 			defer res.Body.Close()
@@ -74,7 +75,7 @@ func TestHandleMainPage(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			request := httptest.NewRequest(tt.method, "/", strings.NewReader("google.com"))
 			w := httptest.NewRecorder()
-			f := HandleMainPage(&SimpleServer{Host: "213", BaseURL: "/", URLmap: map[string]string{}}, chi.NewRouter())
+			f := HandleMainPage(&server.SimpleServer{Host: "213", BaseURL: "/", URLmap: map[string]string{}}, chi.NewRouter())
 			f(w, request)
 			res := w.Result()
 			defer res.Body.Close()
@@ -86,7 +87,7 @@ func TestHandleMainPage(t *testing.T) {
 }
 
 func TestHandleGetID(t *testing.T) {
-	s := SimpleServer{
+	s := server.SimpleServer{
 		URLmap: map[string]string{
 			"first":  "google.com",
 			"second": "ya.ru",
@@ -100,7 +101,7 @@ func TestHandleGetID(t *testing.T) {
 	}
 	positiveTests := []struct {
 		name   string
-		s      SimpleServer
+		s      server.SimpleServer
 		URL    string
 		want   want
 		method string
@@ -183,7 +184,7 @@ func TestHandleApiShorten(t *testing.T) {
   				"url": "https://practicum.yandex.ru"
 			} `))
 			w := httptest.NewRecorder()
-			f := HandleAPIShorten(&SimpleServer{Host: "213", BaseURL: "/", URLmap: map[string]string{}}, chi.NewRouter())
+			f := HandleAPIShorten(&server.SimpleServer{Host: "213", BaseURL: "/", URLmap: map[string]string{}}, chi.NewRouter())
 			f(w, request)
 			res := w.Result()
 			defer res.Body.Close()

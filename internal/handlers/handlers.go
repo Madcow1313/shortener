@@ -6,18 +6,16 @@ import (
 	"io"
 	"math/rand"
 	"net/http"
+	"os"
 	"shortener/internal/compressor"
 	"shortener/internal/mylogger"
+	server "shortener/internal/server/serverTypes"
 	"strconv"
 
 	"github.com/go-chi/chi/v5"
 )
 
-type SimpleServer struct {
-	Host,
-	BaseURL string
-	URLmap map[string]string
-}
+type SimpleServer server.SimpleServer
 
 type DataJSON struct {
 	URL string `json:"url"`
@@ -33,7 +31,7 @@ func shortenURL() string {
 	return string(result)
 }
 
-func HandleMainPage(s *SimpleServer, router *chi.Mux) http.HandlerFunc {
+func HandleMainPage(s *server.SimpleServer, router *chi.Mux) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != "POST" {
 			w.WriteHeader(http.StatusBadRequest)
@@ -51,6 +49,12 @@ func HandleMainPage(s *SimpleServer, router *chi.Mux) http.HandlerFunc {
 		}
 		str := shortenURL()
 		s.URLmap[str] = string(b)
+		err = WriteToStorage(s.Storage, string(b), str, s.ID)
+		if err != nil {
+			fmt.Println(fmt.Errorf("can't write urls to storage file: %w", err))
+		} else {
+			s.ID++
+		}
 		var baseURL string
 		if s.BaseURL != "" {
 			baseURL = s.BaseURL + "/"
@@ -64,14 +68,14 @@ func HandleMainPage(s *SimpleServer, router *chi.Mux) http.HandlerFunc {
 	}
 }
 
-func HandleGetID(s *SimpleServer, path string, origin string) http.HandlerFunc {
+func HandleGetID(s *server.SimpleServer, path string, origin string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Add("Location", origin)
 		w.WriteHeader(http.StatusTemporaryRedirect)
 	}
 }
 
-func HandleAPIShorten(s *SimpleServer, router *chi.Mux) http.HandlerFunc {
+func HandleAPIShorten(s *server.SimpleServer, router *chi.Mux) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != "POST" {
 			w.WriteHeader(http.StatusBadRequest)
@@ -97,6 +101,12 @@ func HandleAPIShorten(s *SimpleServer, router *chi.Mux) http.HandlerFunc {
 			return
 		}
 		str := shortenURL()
+		err = WriteToStorage(s.Storage, string(b), str, s.ID)
+		if err != nil {
+			fmt.Println(fmt.Errorf("can't write urls to storage file: %w", err))
+		} else {
+			s.ID++
+		}
 		s.URLmap[str] = d.URL
 		var baseURL string
 		if s.BaseURL != "" {
@@ -118,4 +128,18 @@ func HandleAPIShorten(s *SimpleServer, router *chi.Mux) http.HandlerFunc {
 		w.WriteHeader(http.StatusCreated)
 		w.Write([]byte(respBody))
 	}
+}
+
+func WriteToStorage(file *os.File, originalURL string, shortURL string, id int64) error {
+	data := server.URLDataJSON{
+		ID:          id,
+		OriginalURL: originalURL,
+		ShortURL:    shortURL,
+	}
+	b, err := json.Marshal(data)
+	if err != nil {
+		return err
+	}
+	_, err = file.WriteString(string(b) + "\n")
+	return err
 }
