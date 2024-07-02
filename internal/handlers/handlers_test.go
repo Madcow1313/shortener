@@ -9,8 +9,7 @@ import (
 	"testing"
 
 	"github.com/go-chi/chi/v5"
-	"github.com/stretchr/testify/assert"
-	_ "github.com/stretchr/testify/assert"
+	"github.com/go-playground/assert/v2"
 )
 
 func TestHandleMainPage(t *testing.T) {
@@ -152,10 +151,7 @@ func TestHandleGetID(t *testing.T) {
 			if res.StatusCode != tt.want.code {
 				t.Fatalf("Error: wrong response code - want %v, got %v in %v", tt.want.code, res.StatusCode, tt.name)
 			}
-
-			if assert.NotEqual(&testing.T{}, tt.want.location, res.Header.Get("Location")) {
-				t.Fatalf("Error: wrong URL- want %v, got %v in %v", tt.want.location, res.Header.Get("Location"), tt.name)
-			}
+			assert.NotEqual(&testing.T{}, tt.want.location, res.Header.Get("Location"))
 		})
 	}
 }
