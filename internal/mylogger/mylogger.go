@@ -66,6 +66,10 @@ func LogRequest(h http.HandlerFunc) http.HandlerFunc {
 	})
 }
 
+func LogError(err error) {
+	ZapLogger.Log(ZapLogger.Level(), "error:", zap.Error(err))
+}
+
 func (r *LoggingResponseWriter) Write(b []byte) (int, error) {
 	// записываем ответ, используя оригинальный http.ResponseWriter
 	size, err := r.ResponseWriter.Write(b)

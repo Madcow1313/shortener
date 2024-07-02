@@ -2,7 +2,6 @@ package compressor
 
 import (
 	"compress/gzip"
-	"fmt"
 	"io"
 	"net/http"
 	"shortener/internal/mylogger"
@@ -59,7 +58,6 @@ func (gr *GzipReader) Close() (err error) {
 
 func Decompress(h http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		fmt.Println(strings.Contains(r.Header.Get("Content-Encoding"), "gzip"))
 		if !strings.Contains(r.Header.Get("Content-Encoding"), "gzip") {
 			h(w, r)
 			return

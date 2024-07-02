@@ -9,6 +9,8 @@ import (
 	"testing"
 
 	"github.com/go-chi/chi/v5"
+	"github.com/stretchr/testify/assert"
+	_ "github.com/stretchr/testify/assert"
 )
 
 func TestHandleMainPage(t *testing.T) {
@@ -54,19 +56,20 @@ func TestHandleMainPage(t *testing.T) {
 			},
 		},
 	}
+	var hh HandlerHelper
 	for _, tt := range positiveTests {
 		t.Run(tt.name, func(t *testing.T) {
 			request := httptest.NewRequest(http.MethodPost, "/", strings.NewReader("google.com"))
 			w := httptest.NewRecorder()
-			f := HandleMainPage(&server.SimpleServer{Host: "213", BaseURL: "/", URLmap: map[string]string{}}, chi.NewRouter())
+			f := hh.HandlePostURL(&server.SimpleServer{Host: "213", BaseURL: "/", URLmap: map[string]string{}}, chi.NewRouter())
 			f(w, request)
 			res := w.Result()
 			defer res.Body.Close()
 			if res.StatusCode != tt.want.code {
-				t.Errorf("Error: wrong response - want %v, got %v in %v", tt.want.code, res.StatusCode, tt.name)
+				t.Fatalf("Error: wrong response - want %v, got %v in %v", tt.want.code, res.StatusCode, tt.name)
 			}
 			if res.ContentLength == 0 {
-				t.Errorf("Error: no body in response")
+				t.Fatalf("Error: no body in response")
 			}
 		})
 	}
@@ -75,12 +78,12 @@ func TestHandleMainPage(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			request := httptest.NewRequest(tt.method, "/", strings.NewReader("google.com"))
 			w := httptest.NewRecorder()
-			f := HandleMainPage(&server.SimpleServer{Host: "213", BaseURL: "/", URLmap: map[string]string{}}, chi.NewRouter())
+			f := hh.HandlePostURL(&server.SimpleServer{Host: "213", BaseURL: "/", URLmap: map[string]string{}}, chi.NewRouter())
 			f(w, request)
 			res := w.Result()
 			defer res.Body.Close()
 			if res.StatusCode != tt.want.code {
-				t.Errorf("Error: wrong response - want %v, got %v in %v", tt.want.code, res.StatusCode, tt.name)
+				t.Fatalf("Error: wrong response - want %v, got %v in %v", tt.want.code, res.StatusCode, tt.name)
 			}
 		})
 	}
@@ -137,19 +140,21 @@ func TestHandleGetID(t *testing.T) {
 			},
 		},
 	}
+	var hh HandlerHelper
 	for _, tt := range positiveTests {
 		t.Run(tt.name, func(t *testing.T) {
 			request := httptest.NewRequest(tt.method, "/"+tt.URL, strings.NewReader(tt.URL))
 			w := httptest.NewRecorder()
-			f := HandleGetID(&s, tt.URL, s.URLmap[tt.URL])
+			f := hh.HandleGetPostedURL(&s, tt.URL, s.URLmap[tt.URL])
 			f(w, request)
 			res := w.Result()
 			defer res.Body.Close()
 			if res.StatusCode != tt.want.code {
-				t.Errorf("Error: wrong response code - want %v, got %v in %v", tt.want.code, res.StatusCode, tt.name)
+				t.Fatalf("Error: wrong response code - want %v, got %v in %v", tt.want.code, res.StatusCode, tt.name)
 			}
-			if loc := res.Header.Get("Location"); loc != tt.want.location {
-				t.Errorf("Error: wrong URL- want %v, got %v in %v", tt.want.location, loc, tt.name)
+
+			if assert.NotEqual(&testing.T{}, tt.want.location, res.Header.Get("Location")) {
+				t.Fatalf("Error: wrong URL- want %v, got %v in %v", tt.want.location, res.Header.Get("Location"), tt.name)
 			}
 		})
 	}
@@ -177,6 +182,7 @@ func TestHandleApiShorten(t *testing.T) {
 			},
 		},
 	}
+	var hh HandlerHelper
 	for _, tt := range positiveTests {
 		t.Run(tt.name, func(t *testing.T) {
 			request := httptest.NewRequest(http.MethodPost, "/", strings.NewReader(`
@@ -184,15 +190,15 @@ func TestHandleApiShorten(t *testing.T) {
   				"url": "https://practicum.yandex.ru"
 			} `))
 			w := httptest.NewRecorder()
-			f := HandleAPIShorten(&server.SimpleServer{Host: "213", BaseURL: "/", URLmap: map[string]string{}}, chi.NewRouter())
+			f := hh.HandlePostAPIShorten(&server.SimpleServer{Host: "213", BaseURL: "/", URLmap: map[string]string{}}, chi.NewRouter())
 			f(w, request)
 			res := w.Result()
 			defer res.Body.Close()
 			if res.StatusCode != tt.want.code {
-				t.Errorf("Error: wrong response - want %v, got %v in %v", tt.want.code, res.StatusCode, tt.name)
+				t.Fatalf("Error: wrong response - want %v, got %v in %v", tt.want.code, res.StatusCode, tt.name)
 			}
 			if res.ContentLength == 0 {
-				t.Errorf("Error: no body in response")
+				t.Fatalf("Error: no body in response")
 			}
 		})
 	}

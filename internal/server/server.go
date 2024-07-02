@@ -3,7 +3,6 @@ package server
 import (
 	"bufio"
 	"encoding/json"
-	"fmt"
 	"net/http"
 	"os"
 	"shortener/internal/compressor"
@@ -17,7 +16,7 @@ import (
 type SimpleServer server.SimpleServer
 type Server server.Server
 
-func InitServer(host, baseURL string, storage *os.File) Server {
+func NewServer(host, baseURL string, storage *os.File) Server {
 	return &SimpleServer{Host: host, BaseURL: baseURL, Storage: storage, URLmap: map[string]string{}, ID: 1}
 }
 
@@ -39,10 +38,11 @@ func (s *SimpleServer) CheckStorage() error {
 
 func (s *SimpleServer) RunServer() {
 	router := chi.NewRouter()
+	var hh handlers.HandlerHelper
 	mylogger.Initialize("INFO")
 	err := s.CheckStorage()
 	if err != nil {
-		fmt.Println(fmt.Errorf("can't read saved urls: %w", err))
+		mylogger.LogError(err)
 	}
 	serv := server.SimpleServer{
 		Host:    s.Host,
@@ -57,16 +57,16 @@ func (s *SimpleServer) RunServer() {
 		baseURL = s.BaseURL + "/"
 	}
 	for k, v := range s.URLmap {
-		router.Get("/"+baseURL+k, compressor.Compress(mylogger.LogRequest(handlers.HandleGetID(&serv, "/"+k, v))))
+		router.Get("/"+baseURL+k, compressor.Compress(mylogger.LogRequest(hh.HandleGetPostedURL(&serv, "/"+k, v))))
 	}
 	router.HandleFunc("/", compressor.Decompress(
-		mylogger.LogRequest(handlers.HandleMainPage(&serv, router))))
+		mylogger.LogRequest(hh.HandlePostURL(&serv, router))))
 
 	router.HandleFunc("/api/shorten", compressor.Decompress(
-		mylogger.LogRequest(handlers.HandleAPIShorten(&serv, router))))
+		mylogger.LogRequest(hh.HandlePostAPIShorten(&serv, router))))
 
 	err = http.ListenAndServe(s.Host, router)
 	if err != nil {
-		fmt.Println(fmt.Errorf("can't run server: %w", err))
+		mylogger.LogError(err)
 	}
 }

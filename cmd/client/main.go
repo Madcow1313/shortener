@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"fmt"
 	"io"
+	"log"
 	"net/http"
 	"net/url"
 	"os"
@@ -42,13 +43,13 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
+	defer response.Body.Close()
 	// выводим код ответа
 	fmt.Println("Статус-код ", response.Status)
-	defer response.Body.Close()
 	// читаем поток из тела ответа
 	body, err := io.ReadAll(response.Body)
 	if err != nil {
-		panic(err)
+		log.Fatal(err)
 	}
 	// и печатаем его
 	fmt.Println(string(body))

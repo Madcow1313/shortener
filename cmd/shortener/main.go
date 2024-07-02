@@ -1,20 +1,22 @@
 package main
 
 import (
-	"fmt"
 	"os"
+	"shortener/internal/mylogger"
 	"shortener/internal/server"
 )
 
 func main() {
-	var c config
-	c.Set()
+	var c Config
+	c.SetConfigParameteres()
+
 	file, err := os.OpenFile(c.URLStorage, os.O_CREATE|os.O_APPEND|os.O_RDWR, 0777)
 	if err != nil {
-		fmt.Println(fmt.Errorf("can't open url storage file: %w", err))
+		mylogger.LogError(err)
 		return
 	}
 	defer file.Close()
-	serv := server.InitServer(c.Host, c.BaseURL, file)
+	
+	serv := server.NewServer(c.Host, c.BaseURL, file)
 	serv.RunServer()
 }
