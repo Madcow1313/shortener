@@ -6,6 +6,7 @@ import (
 	"io"
 	"math/rand"
 	"net/http"
+	"shortener/internal/compressor"
 	"shortener/internal/mylogger"
 	"strconv"
 
@@ -54,7 +55,7 @@ func HandleMainPage(s *SimpleServer, router *chi.Mux) http.HandlerFunc {
 		if s.BaseURL != "" {
 			baseURL = s.BaseURL + "/"
 		}
-		router.Get("/"+baseURL+str, mylogger.LogRequest(HandleGetID(s, "/"+str, string(b))))
+		router.Get("/"+baseURL+str, compressor.Compress(mylogger.LogRequest(HandleGetID(s, "/"+str, string(b)))))
 		w.WriteHeader(http.StatusCreated)
 		w.Header().Set("Content-Type", "text/plain")
 		respBody := "http://" + s.Host + "/" + baseURL + str
@@ -101,7 +102,7 @@ func HandleAPIShorten(s *SimpleServer, router *chi.Mux) http.HandlerFunc {
 		if s.BaseURL != "" {
 			baseURL = s.BaseURL + "/"
 		}
-		router.Get("/"+baseURL+str, mylogger.LogRequest(HandleGetID(s, "/"+str, d.URL)))
+		router.Get("/"+baseURL+str, compressor.Compress(mylogger.LogRequest(HandleGetID(s, "/"+str, d.URL))))
 		w.Header().Set("Content-Type", "application/json")
 
 		res := map[string]string{

@@ -76,9 +76,7 @@ func Decompress(h http.HandlerFunc) http.HandlerFunc {
 
 func Compress(h http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		if !strings.Contains(r.Header.Get("Accept-Encoding"), "gzip") ||
-			!strings.Contains(r.Header.Get("Content-type"), "application/json") ||
-			!strings.Contains(r.Header.Get("Content-type"), "text/html") {
+		if !strings.Contains(r.Header.Get("Accept-Encoding"), "gzip") {
 			h(w, r)
 			return
 		}

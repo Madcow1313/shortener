@@ -27,19 +27,19 @@ func InitServer(host, baseURL string) Server {
 func (s SimpleServer) RunServer() {
 	router := chi.NewRouter()
 	mylogger.Initialize("INFO")
-	router.HandleFunc("/", compressor.Decompress(compressor.Compress(
+	router.HandleFunc("/", compressor.Decompress(
 		mylogger.LogRequest(handlers.HandleMainPage(&handlers.SimpleServer{
 			Host:    s.Host,
 			BaseURL: s.BaseURL,
 			URLmap:  s.URLmap,
-		}, router)))))
+		}, router))))
 
-	router.HandleFunc("/api/shorten", compressor.Decompress(compressor.Compress(
+	router.HandleFunc("/api/shorten", compressor.Decompress(
 		mylogger.LogRequest(handlers.HandleAPIShorten(&handlers.SimpleServer{
 			Host:    s.Host,
 			BaseURL: s.BaseURL,
 			URLmap:  s.URLmap,
-		}, router)))))
+		}, router))))
 
 	err := http.ListenAndServe(s.Host, router)
 	if err != nil {
