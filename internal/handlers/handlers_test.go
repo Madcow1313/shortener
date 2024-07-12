@@ -4,10 +4,12 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	server "shortener/internal/server/serverTypes"
 	"strings"
 	"testing"
 
 	"github.com/go-chi/chi/v5"
+	"github.com/go-playground/assert/v2"
 )
 
 func TestHandleMainPage(t *testing.T) {
@@ -53,19 +55,20 @@ func TestHandleMainPage(t *testing.T) {
 			},
 		},
 	}
+	var hh HandlerHelper
 	for _, tt := range positiveTests {
 		t.Run(tt.name, func(t *testing.T) {
 			request := httptest.NewRequest(http.MethodPost, "/", strings.NewReader("google.com"))
 			w := httptest.NewRecorder()
-			f := HandleMainPage(&SimpleServer{Host: "213", BaseURL: "/", URLmap: map[string]string{}}, chi.NewRouter())
+			f := hh.HandlePostURL(&server.SimpleServer{Host: "213", BaseURL: "/", URLmap: map[string]string{}}, chi.NewRouter())
 			f(w, request)
 			res := w.Result()
 			defer res.Body.Close()
 			if res.StatusCode != tt.want.code {
-				t.Errorf("Error: wrong response - want %v, got %v in %v", tt.want.code, res.StatusCode, tt.name)
+				t.Fatalf("Error: wrong response - want %v, got %v in %v", tt.want.code, res.StatusCode, tt.name)
 			}
 			if res.ContentLength == 0 {
-				t.Errorf("Error: no body in response")
+				t.Fatalf("Error: no body in response")
 			}
 		})
 	}
@@ -74,19 +77,19 @@ func TestHandleMainPage(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			request := httptest.NewRequest(tt.method, "/", strings.NewReader("google.com"))
 			w := httptest.NewRecorder()
-			f := HandleMainPage(&SimpleServer{Host: "213", BaseURL: "/", URLmap: map[string]string{}}, chi.NewRouter())
+			f := hh.HandlePostURL(&server.SimpleServer{Host: "213", BaseURL: "/", URLmap: map[string]string{}}, chi.NewRouter())
 			f(w, request)
 			res := w.Result()
 			defer res.Body.Close()
 			if res.StatusCode != tt.want.code {
-				t.Errorf("Error: wrong response - want %v, got %v in %v", tt.want.code, res.StatusCode, tt.name)
+				t.Fatalf("Error: wrong response - want %v, got %v in %v", tt.want.code, res.StatusCode, tt.name)
 			}
 		})
 	}
 }
 
 func TestHandleGetID(t *testing.T) {
-	s := SimpleServer{
+	s := server.SimpleServer{
 		URLmap: map[string]string{
 			"first":  "google.com",
 			"second": "ya.ru",
@@ -100,7 +103,7 @@ func TestHandleGetID(t *testing.T) {
 	}
 	positiveTests := []struct {
 		name   string
-		s      SimpleServer
+		s      server.SimpleServer
 		URL    string
 		want   want
 		method string
@@ -136,19 +139,64 @@ func TestHandleGetID(t *testing.T) {
 			},
 		},
 	}
+	var hh HandlerHelper
 	for _, tt := range positiveTests {
 		t.Run(tt.name, func(t *testing.T) {
 			request := httptest.NewRequest(tt.method, "/"+tt.URL, strings.NewReader(tt.URL))
 			w := httptest.NewRecorder()
-			f := HandleGetID(&s, tt.URL, s.URLmap[tt.URL])
+			f := hh.HandleGetPostedURL(&s, tt.URL, s.URLmap[tt.URL])
 			f(w, request)
 			res := w.Result()
 			defer res.Body.Close()
 			if res.StatusCode != tt.want.code {
-				t.Errorf("Error: wrong response code - want %v, got %v in %v", tt.want.code, res.StatusCode, tt.name)
+				t.Fatalf("Error: wrong response code - want %v, got %v in %v", tt.want.code, res.StatusCode, tt.name)
 			}
-			if loc := res.Header.Get("Location"); loc != tt.want.location {
-				t.Errorf("Error: wrong URL- want %v, got %v in %v", tt.want.location, loc, tt.name)
+			if !assert.IsEqual(tt.want.location, res.Header.Get("Location")) {
+				t.Fatalf("Error: wrong URL- want %v, got %v in %v", tt.want.location, res.Header.Get("Location"), tt.name)
+			}
+		})
+	}
+}
+
+func TestHandleApiShorten(t *testing.T) {
+	type want struct {
+		code     int
+		response string
+	}
+	positiveTests := []struct {
+		name string
+		want want
+	}{
+		{
+			name: "positive test 1",
+			want: want{
+				code: 201,
+			},
+		},
+		{
+			name: "positive test 2",
+			want: want{
+				code: 201,
+			},
+		},
+	}
+	var hh HandlerHelper
+	for _, tt := range positiveTests {
+		t.Run(tt.name, func(t *testing.T) {
+			request := httptest.NewRequest(http.MethodPost, "/", strings.NewReader(`
+			{
+  				"url": "https://practicum.yandex.ru"
+			} `))
+			w := httptest.NewRecorder()
+			f := hh.HandlePostAPIShorten(&server.SimpleServer{Host: "213", BaseURL: "/", URLmap: map[string]string{}}, chi.NewRouter())
+			f(w, request)
+			res := w.Result()
+			defer res.Body.Close()
+			if res.StatusCode != tt.want.code {
+				t.Fatalf("Error: wrong response - want %v, got %v in %v", tt.want.code, res.StatusCode, tt.name)
+			}
+			if res.ContentLength == 0 {
+				t.Fatalf("Error: no body in response")
 			}
 		})
 	}
