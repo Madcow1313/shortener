@@ -1,6 +1,9 @@
 package server
 
-import "os"
+import (
+	"os"
+	"shortener/cmd/shortener/config"
+)
 
 type Server interface {
 	RunServer()
@@ -12,6 +15,7 @@ type SimpleServer struct {
 	URLmap  map[string]string
 	ID      int64
 	Storage *os.File
+	Config  config.Config
 }
 
 type URLDataJSON struct {

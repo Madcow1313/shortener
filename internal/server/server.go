@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"os"
+	"shortener/cmd/shortener/config"
 	"shortener/internal/compressor"
 	"shortener/internal/handlers"
 	"shortener/internal/mylogger"
@@ -16,8 +17,8 @@ import (
 type SimpleServer server.SimpleServer
 type Server server.Server
 
-func NewServer(host, baseURL string, storage *os.File) Server {
-	return &SimpleServer{Host: host, BaseURL: baseURL, Storage: storage, URLmap: map[string]string{}, ID: 1}
+func NewServer(conf config.Config, storage *os.File) Server {
+	return &SimpleServer{Host: conf.Host, BaseURL: conf.BaseURL, Storage: storage, URLmap: map[string]string{}, ID: 1, Config: conf}
 }
 
 func (s *SimpleServer) CheckStorage() error {
@@ -39,6 +40,7 @@ func (s *SimpleServer) CheckStorage() error {
 func (s *SimpleServer) RunServer() {
 	router := chi.NewRouter()
 	var hh handlers.HandlerHelper
+	hh.Config = s.Config
 	mylogger.Initialize("INFO")
 	err := s.CheckStorage()
 	if err != nil {
@@ -64,6 +66,8 @@ func (s *SimpleServer) RunServer() {
 
 	router.HandleFunc("/api/shorten", compressor.Decompress(
 		mylogger.LogRequest(hh.HandlePostAPIShorten(&serv, router))))
+
+	router.HandleFunc("/ping", hh.HandlePing())
 
 	err = http.ListenAndServe(s.Host, router)
 	if err != nil {

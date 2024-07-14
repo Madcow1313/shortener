@@ -7,7 +7,9 @@ import (
 	"math/big"
 	"net/http"
 	"os"
+	"shortener/cmd/shortener/config"
 	"shortener/internal/compressor"
+	"shortener/internal/dbconnector"
 	"shortener/internal/mylogger"
 	server "shortener/internal/server/serverTypes"
 	"strconv"
@@ -21,7 +23,9 @@ type DataJSON struct {
 	URL string `json:"url"`
 }
 
-type HandlerHelper struct{}
+type HandlerHelper struct {
+	Config config.Config
+}
 
 func (hh *HandlerHelper) ShortenURL() string {
 	letters := []rune("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ")
@@ -156,4 +160,16 @@ func WriteToStorage(file *os.File, originalURL string, shortURL string, id int64
 	}
 	_, err = file.WriteString(string(b) + "\n")
 	return err
+}
+
+func (hh *HandlerHelper) HandlePing() http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		c := dbconnector.NewConnector(hh.Config.DatabaseDSN)
+		err := c.Connect(nil)
+		if err != nil {
+			http.Error(w, "Unable to connect to database", http.StatusInternalServerError)
+			return
+		}
+		w.WriteHeader(http.StatusOK)
+	}
 }
