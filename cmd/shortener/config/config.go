@@ -5,18 +5,26 @@ import (
 	"os"
 )
 
+const (
+	Memory = iota
+	File
+	Database
+)
+
 type Config struct {
 	Host        string
 	BaseURL     string
 	URLStorage  string
 	DatabaseDSN string
+	StorageType int
 }
 
 const (
-	defaultHost        = "localhost:8080"
-	defaultBaseURL     = ""
-	defaultURLstorage  = "/tmp/short-url-db.json"
-	defaultDatabaseDSN = "host=localhost user=postgres password=postgres dbname=postgres sslmode=disable"
+	defaultHost       = "localhost:8080"
+	defaultBaseURL    = ""
+	defaultURLstorage = ""
+	//defaultDatabaseDSN = "host=localhost user=postgres password=postgres dbname=postgres sslmode=disable"
+	defaultDatabaseDSN = ""
 )
 
 func (c *Config) SetConfigParameteres() {
@@ -32,10 +40,19 @@ func (c *Config) SetConfigParameteres() {
 	if base := os.Getenv("BASE_URL"); base != "" {
 		c.BaseURL = base
 	}
+	if databaseDSN := os.Getenv("DATABASE_DSN"); databaseDSN != "" {
+		c.DatabaseDSN = databaseDSN
+	}
 	if storage := os.Getenv("FILE_STORAGE_PATH"); storage != "" {
 		c.URLStorage = storage
 	}
-	if databaseDSN := os.Getenv("DATABASE_DSN"); databaseDSN != "" {
-		c.DatabaseDSN = databaseDSN
+
+	c.StorageType = Memory
+	if c.DatabaseDSN == "" {
+		if c.URLStorage != "" {
+			c.StorageType = File
+		}
+	} else {
+		c.StorageType = Database
 	}
 }

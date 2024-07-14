@@ -10,13 +10,15 @@ import (
 func main() {
 	var c config.Config
 	c.SetConfigParameteres()
-
-	file, err := os.OpenFile(c.URLStorage, os.O_CREATE|os.O_APPEND|os.O_RDWR, 0777)
-	if err != nil {
-		mylogger.LogError(err)
-		return
+	var file *os.File
+	if c.StorageType == config.File {
+		file, err := os.OpenFile(c.URLStorage, os.O_CREATE|os.O_APPEND|os.O_RDWR, 0777)
+		if err != nil {
+			mylogger.LogError(err)
+			return
+		}
+		defer file.Close()
 	}
-	defer file.Close()
 
 	serv := server.NewServer(c, file)
 	serv.RunServer()

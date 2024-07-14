@@ -2,11 +2,13 @@ package server
 
 import (
 	"bufio"
+	"database/sql"
 	"encoding/json"
 	"net/http"
 	"os"
 	"shortener/cmd/shortener/config"
 	"shortener/internal/compressor"
+	"shortener/internal/dbconnector"
 	"shortener/internal/handlers"
 	"shortener/internal/mylogger"
 	server "shortener/internal/server/serverTypes"
@@ -21,7 +23,7 @@ func NewServer(conf config.Config, storage *os.File) Server {
 	return &SimpleServer{Host: conf.Host, BaseURL: conf.BaseURL, Storage: storage, URLmap: map[string]string{}, ID: 1, Config: conf}
 }
 
-func (s *SimpleServer) CheckStorage() error {
+func (s *SimpleServer) CheckFileStorage() error {
 	scanner := bufio.NewScanner(s.Storage)
 	id := 0
 	for scanner.Scan() {
@@ -37,21 +39,47 @@ func (s *SimpleServer) CheckStorage() error {
 	return nil
 }
 
+func (s *SimpleServer) CheckDBStorage() error {
+	c := dbconnector.NewConnector(s.Config.DatabaseDSN)
+	err := c.Connect(func(db *sql.DB, args ...interface{}) error {
+		return c.CreateTable(db)
+	})
+	if err == nil {
+		err := c.Connect(func(db *sql.DB, args ...interface{}) error {
+			return c.ReadFromDB(db)
+		})
+		if err == nil {
+			s.URLmap = c.URLmap
+		}
+	}
+	return err
+}
+
 func (s *SimpleServer) RunServer() {
 	router := chi.NewRouter()
 	var hh handlers.HandlerHelper
 	hh.Config = s.Config
 	mylogger.Initialize("INFO")
-	err := s.CheckStorage()
+
+	var err error
+	switch s.Config.StorageType {
+	case config.Database:
+		err = s.CheckDBStorage()
+	case config.File:
+		err = s.CheckFileStorage()
+	default:
+	}
 	if err != nil {
 		mylogger.LogError(err)
 	}
+
 	serv := server.SimpleServer{
 		Host:    s.Host,
 		BaseURL: s.BaseURL,
 		URLmap:  s.URLmap,
 		Storage: s.Storage,
 		ID:      s.ID,
+		Config:  s.Config,
 	}
 
 	var baseURL string

@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"crypto/rand"
+	"database/sql"
 	"encoding/json"
 	"io"
 	"math/big"
@@ -63,7 +64,19 @@ func (hh *HandlerHelper) HandlePostURL(s *server.SimpleServer, router *chi.Mux) 
 
 		str := hh.ShortenURL()
 		s.URLmap[str] = string(b)
-		err = WriteToStorage(s.Storage, string(b), str, s.ID)
+
+		switch s.Config.StorageType {
+		case config.Database:
+			c := dbconnector.NewConnector(s.Config.DatabaseDSN)
+			c.Connect(func(db *sql.DB, args ...interface{}) error {
+				return c.InsertURL(db, str, string(b))
+			})
+		case config.File:
+			err = WriteToStorage(s.Storage, string(b), str, s.ID)
+
+		default:
+		}
+
 		if err != nil {
 			mylogger.LogError(err)
 		} else {
@@ -119,7 +132,17 @@ func (hh *HandlerHelper) HandlePostAPIShorten(s *server.SimpleServer, router *ch
 		}
 
 		str := hh.ShortenURL()
-		err = WriteToStorage(s.Storage, string(b), str, s.ID)
+		switch s.Config.StorageType {
+		case config.Database:
+			c := dbconnector.NewConnector(s.Config.DatabaseDSN)
+			c.Connect(func(db *sql.DB, args ...interface{}) error {
+				return c.InsertURL(db, str, string(b))
+			})
+		case config.File:
+			err = WriteToStorage(s.Storage, string(b), str, s.ID)
+
+		default:
+		}
 		if err != nil {
 			mylogger.LogError(err)
 		} else {
