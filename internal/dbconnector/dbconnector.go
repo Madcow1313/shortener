@@ -62,6 +62,11 @@ func (c *Connector) ReadFromDB(db *sql.DB) error {
 	rows, err := db.Query(selectQuery)
 	if err != nil {
 		mylogger.LogError(err)
+		return err
+	}
+	if rows.Err() != nil {
+		mylogger.LogError(rows.Err())
+		return err
 	}
 	c.URLmap = make(map[string]string)
 	for rows.Next() {

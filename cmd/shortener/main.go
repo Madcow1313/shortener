@@ -11,8 +11,9 @@ func main() {
 	var c config.Config
 	c.SetConfigParameteres()
 	var file *os.File
+	var err error
 	if c.StorageType == config.File {
-		file, err := os.OpenFile(c.URLStorage, os.O_CREATE|os.O_APPEND|os.O_RDWR, 0777)
+		file, err = os.OpenFile(c.URLStorage, os.O_CREATE|os.O_APPEND|os.O_RDWR, 0777)
 		if err != nil {
 			mylogger.LogError(err)
 			return
