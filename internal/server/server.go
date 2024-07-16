@@ -53,7 +53,7 @@ func (s *SimpleServer) CheckDBStorage() error {
 			s.URLmap = c.URLmap
 		}
 	}
-	s.Connector = c
+	c.DB.Close()
 	return err
 }
 
@@ -61,7 +61,7 @@ func (s *SimpleServer) RunServer() {
 	router := chi.NewRouter()
 	var hh handlers.HandlerHelper
 	hh.Config = s.Config
-	hh.Connector = s.Connector
+	hh.Connector = dbconnector.NewConnector(hh.Config.DatabaseDSN)
 	var mylogger mylogger.Mylogger
 	err := mylogger.Initialize("INFO")
 	if err != nil {
