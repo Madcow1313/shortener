@@ -35,7 +35,7 @@ type BatchJSON struct {
 
 type ResponseJSON struct {
 	CorrelationID string `json:"correlation_id"`
-	Short_url     string `json:"short_url"`
+	ShortURL      string `json:"short_url"`
 }
 
 type HandlerHelper struct {
@@ -215,6 +215,19 @@ func (hh *HandlerHelper) HandlePostApiShortenBatch(s *server.SimpleServer, route
 
 		var bJSON BatchJSON
 
+		b = []byte(
+			`[
+    {
+        "correlation_id": "<строковый идентификатор из объекта запроса>",
+        "short_url": "<результирующий сокращённый URL>"
+    },
+    {
+        "correlation_id": "<строковый идентификатор из объекта запроса>",
+        "short_url": "<результирующий сокращённый URL>"
+    }
+] `,
+		)
+
 		bJSON.Data = make([]DataBatchJSON, 0)
 		err = json.Unmarshal(b, &bJSON.Data)
 		if err != nil {
@@ -223,22 +236,22 @@ func (hh *HandlerHelper) HandlePostApiShortenBatch(s *server.SimpleServer, route
 		}
 
 		data := make(map[string]string)
-		response_data := make(map[string]string)
+		responseData := make(map[string]string)
 		var baseURL string
 		if s.BaseURL != "" {
 			baseURL = s.BaseURL + "/"
 		}
 		for _, val := range bJSON.Data {
-			short_url := hh.ShortenURL()
+			shortURL := hh.ShortenURL()
 
-			router.Get("/"+baseURL+short_url, compressor.Compress(mylogger.LogRequest(hh.HandleGetPostedURL(s, "/"+short_url, val.URL))))
+			router.Get("/"+baseURL+shortURL, compressor.Compress(mylogger.LogRequest(hh.HandleGetPostedURL(s, "/"+shortURL, val.URL))))
 
-			s.URLmap[short_url] = val.URL
-			data[short_url] = val.URL
-			response_data[val.CorrelationID] = short_url
+			s.URLmap[shortURL] = val.URL
+			data[shortURL] = val.URL
+			responseData[shortURL] = val.CorrelationID
 
 			if hh.Config.StorageType == config.File {
-				err = WriteToFileStorage(s.Storage, val.URL, short_url, hh.Server.ID)
+				err = WriteToFileStorage(s.Storage, val.URL, shortURL, hh.Server.ID)
 				if err != nil {
 					mylogger.LogError(err)
 				} else {
@@ -258,8 +271,8 @@ func (hh *HandlerHelper) HandlePostApiShortenBatch(s *server.SimpleServer, route
 		}
 
 		temp := make([]ResponseJSON, 0)
-		for key, value := range response_data {
-			temp = append(temp, ResponseJSON{key, "http://" + s.Host + "/" + baseURL + value})
+		for key, value := range responseData {
+			temp = append(temp, ResponseJSON{value, "http://" + s.Host + "/" + baseURL + key})
 		}
 		response, err := json.MarshalIndent(temp, "	", "")
 		if err != nil {
