@@ -23,7 +23,7 @@ const (
 	defaultHost        = "localhost:8080"
 	defaultBaseURL     = ""
 	defaultURLstorage  = ""
-	defaultDatabaseDSN = "user=postgres dbname=postgres password=postgres"
+	defaultDatabaseDSN = ""
 )
 
 func (c *Config) SetConfigParameteres() {
