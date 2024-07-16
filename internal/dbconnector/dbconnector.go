@@ -8,9 +8,10 @@ import (
 )
 
 const (
-	createQuery = "CREATE TABLE IF NOT EXISTS url (short varchar, origin varchar)"
-	insertQuery = "INSERT INTO url (short, origin) VALUES ($1, $2)"
-	selectQuery = "SELECT * FROM url"
+	createQuery    = "CREATE TABLE IF NOT EXISTS url (short varchar, origin varchar unique)"
+	insertQuery    = "INSERT INTO url (short, origin) VALUES ($1, $2)"
+	selectQuery    = "SELECT * FROM url"
+	selectShortURL = "SELECT short FROM url WHERE origin=$1"
 )
 
 type Connector struct {
@@ -87,12 +88,25 @@ func (c *Connector) InsertBatchToDatabase(db *sql.DB, data map[string]string) er
 		if err != nil {
 			continue
 		}
-		r, err := stmt.Query(key, val)
-		if err != nil || r.Err() != nil {
+		_, err = stmt.Exec(key, val)
+		if err != nil {
 			tx.Rollback()
 			continue
 		}
 		tx.Commit()
 	}
 	return err
+}
+
+func (c *Connector) SelectShortURL(db *sql.DB, origin string) error {
+	r, err := db.Query(selectShortURL, origin)
+	if err != nil || r.Err() != nil {
+		return err
+	}
+	r.Next()
+	err = r.Scan(&c.LastResult)
+	if err != nil {
+		return err
+	}
+	return nil
 }

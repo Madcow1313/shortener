@@ -4,6 +4,7 @@ import (
 	"crypto/rand"
 	"database/sql"
 	"encoding/json"
+	"errors"
 	"io"
 	"math/big"
 	"net/http"
@@ -16,6 +17,7 @@ import (
 	"strconv"
 
 	"github.com/go-chi/chi/v5"
+	"github.com/jackc/pgerrcode"
 )
 
 type SimpleServer server.SimpleServer
@@ -77,26 +79,41 @@ func (hh *HandlerHelper) HandlePostURL(s *server.SimpleServer, router *chi.Mux) 
 		}
 		defer r.Body.Close()
 
-		str := hh.ShortenURL()
-		s.URLmap[str] = string(b)
-
-		err = hh.WriteToStorage(str, string(b))
-		if err != nil {
-			mylogger.LogError(err)
-		} else {
-			s.ID++
-		}
-
+		shortURL := hh.ShortenURL()
 		var baseURL string
+		inDatabase := false
 		if s.BaseURL != "" {
 			baseURL = s.BaseURL + "/"
 		}
-		router.Get("/"+baseURL+str, compressor.Compress(mylogger.LogRequest(hh.HandleGetPostedURL(s, "/"+str, string(b))))) //так и не смог придумать как убрать отсюда роутер
+		err = hh.WriteToStorage(shortURL, string(b))
+		if err != nil {
+			mylogger.LogError(err)
+			if err != nil {
+				c := dbconnector.NewConnector(hh.Config.DatabaseDSN)
+				err = c.Connect(func(db *sql.DB, args ...interface{}) error {
+					return c.SelectShortURL(db, string(b))
+				})
+				if err != nil {
+					http.Error(w, "Unable to get short url from databse", http.StatusInternalServerError)
+					return
+				}
+				shortURL = c.LastResult
+				inDatabase = true
+			}
+		} else {
+			s.ID++
+			s.URLmap[shortURL] = string(b)
+			router.Get("/"+baseURL+shortURL, compressor.Compress(mylogger.LogRequest(hh.HandleGetPostedURL(s, "/"+shortURL, string(b))))) //так и не смог придумать как убрать отсюда роутер
 
+		}
 		w.Header().Set("Content-Type", "text/plain")
-		respBody := "http://" + s.Host + "/" + baseURL + str
+		respBody := "http://" + s.Host + "/" + baseURL + shortURL
 		w.Header().Set("Content-Length", strconv.FormatInt(int64(len(respBody)), 10))
-		w.WriteHeader(http.StatusCreated)
+		if !inDatabase {
+			w.WriteHeader(http.StatusCreated)
+		} else {
+			w.WriteHeader(http.StatusConflict)
+		}
 		w.Write([]byte(respBody))
 	}
 }
@@ -134,25 +151,37 @@ func (hh *HandlerHelper) HandlePostAPIShorten(s *server.SimpleServer, router *ch
 			http.Error(w, "Unable to unmarshal json-data", http.StatusBadRequest)
 			return
 		}
+		w.Header().Set("Content-Type", "application/json")
 
-		str := hh.ShortenURL()
-		err = hh.WriteToStorage(str, string(b))
-		if err != nil {
-			mylogger.LogError(err)
-		} else {
-			s.ID++
-		}
-
-		s.URLmap[str] = d.URL
+		shortURL := hh.ShortenURL()
 		var baseURL string
+		inDatabase := false
 		if s.BaseURL != "" {
 			baseURL = s.BaseURL + "/"
 		}
-		router.Get("/"+baseURL+str, compressor.Compress(mylogger.LogRequest(hh.HandleGetPostedURL(s, "/"+str, d.URL))))
+		err = hh.WriteToStorage(shortURL, string(b))
+		if err != nil {
+			mylogger.LogError(err)
+			if errors.Is(err, errors.New(pgerrcode.UniqueViolation)) {
+				c := dbconnector.NewConnector(hh.Config.DatabaseDSN)
+				err = c.Connect(func(db *sql.DB, args ...interface{}) error {
+					return c.SelectShortURL(db, string(b))
+				})
+				if err != nil {
+					http.Error(w, "Unable to get short url from databse", http.StatusInternalServerError)
+					return
+				}
+				shortURL = c.LastResult
+				inDatabase = true
+			}
+		} else {
+			s.ID++
+			s.URLmap[shortURL] = d.URL
+			router.Get("/"+baseURL+shortURL, compressor.Compress(mylogger.LogRequest(hh.HandleGetPostedURL(s, "/"+shortURL, d.URL))))
+		}
 
-		w.Header().Set("Content-Type", "application/json")
 		res := map[string]string{
-			"result": "http://" + s.Host + "/" + baseURL + str,
+			"result": "http://" + s.Host + "/" + baseURL + shortURL,
 		}
 		respBody, err := json.MarshalIndent(res, "", "	")
 		if err != nil {
@@ -160,7 +189,11 @@ func (hh *HandlerHelper) HandlePostAPIShorten(s *server.SimpleServer, router *ch
 			return
 		}
 		w.Header().Set("Content-Length", strconv.FormatInt(int64(len(respBody)), 10))
-		w.WriteHeader(http.StatusCreated)
+		if !inDatabase {
+			w.WriteHeader(http.StatusCreated)
+		} else {
+			w.WriteHeader(http.StatusConflict)
+		}
 		w.Write([]byte(respBody))
 	}
 }
@@ -213,9 +246,6 @@ func (hh *HandlerHelper) HandlePostAPIShortenBatch(s *server.SimpleServer, route
 		}
 		defer r.Body.Close()
 
-		// b = []byte(
-		// 	`[{"correlation_id":"860173f2-d841-4067-a14e-9f2906757e2c","original_url":"http://ogmnttnq2pmi.biz"},{"correlation_id":"44a67738-4d9c-4aaf-abdf-a7baeab52bde","original_url":"http://atk6qai0.yandex/fddzill"}]`,
-		// )
 		var bJSON BatchJSON
 
 		bJSON.Data = make([]DataBatchJSON, 0)

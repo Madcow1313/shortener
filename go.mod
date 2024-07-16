@@ -8,6 +8,8 @@ require (
 	go.uber.org/zap v1.27.0
 )
 
+require github.com/jackc/pgerrcode v0.0.0-20240316143900-6e2875d9b438
+
 require (
 	github.com/lib/pq v1.10.9
 	github.com/stretchr/testify v1.9.0 // indirect
