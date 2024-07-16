@@ -60,7 +60,9 @@ func TestHandleMainPage(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			request := httptest.NewRequest(http.MethodPost, "/", strings.NewReader("google.com"))
 			w := httptest.NewRecorder()
-			f := hh.HandlePostURL(&server.SimpleServer{Host: "213", BaseURL: "/", URLmap: map[string]string{}}, chi.NewRouter())
+			hh.Server = &server.SimpleServer{Host: "213", BaseURL: "/", URLmap: map[string]string{}}
+			hh.Router = chi.NewRouter()
+			f := hh.HandlePostURL()
 			f(w, request)
 			res := w.Result()
 			defer res.Body.Close()
@@ -77,7 +79,9 @@ func TestHandleMainPage(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			request := httptest.NewRequest(tt.method, "/", strings.NewReader("google.com"))
 			w := httptest.NewRecorder()
-			f := hh.HandlePostURL(&server.SimpleServer{Host: "213", BaseURL: "/", URLmap: map[string]string{}}, chi.NewRouter())
+			hh.Server = &server.SimpleServer{Host: "213", BaseURL: "/", URLmap: map[string]string{}}
+			hh.Router = chi.NewRouter()
+			f := hh.HandlePostURL()
 			f(w, request)
 			res := w.Result()
 			defer res.Body.Close()
@@ -144,7 +148,8 @@ func TestHandleGetID(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			request := httptest.NewRequest(tt.method, "/"+tt.URL, strings.NewReader(tt.URL))
 			w := httptest.NewRecorder()
-			f := hh.HandleGetPostedURL(&s, tt.URL, s.URLmap[tt.URL])
+			hh.Server = &s
+			f := hh.HandleGetPostedURL(tt.URL, s.URLmap[tt.URL])
 			f(w, request)
 			res := w.Result()
 			defer res.Body.Close()
@@ -188,7 +193,9 @@ func TestHandleApiShorten(t *testing.T) {
   				"url": "https://practicum.yandex.ru"
 			} `))
 			w := httptest.NewRecorder()
-			f := hh.HandlePostAPIShorten(&server.SimpleServer{Host: "213", BaseURL: "/", URLmap: map[string]string{}}, chi.NewRouter())
+			hh.Server = &server.SimpleServer{Host: "213", BaseURL: "/", URLmap: map[string]string{}}
+			hh.Router = chi.NewRouter()
+			f := hh.HandlePostAPIShorten()
 			f(w, request)
 			res := w.Result()
 			defer res.Body.Close()

@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"database/sql"
 	"encoding/json"
+	"log"
 	"net/http"
 	"os"
 	"shortener/cmd/shortener/config"
@@ -19,7 +20,7 @@ import (
 type SimpleServer server.SimpleServer
 type Server server.Server
 
-func NewServer(conf config.Config, storage *os.File) Server {
+func NewSimpleServer(conf config.Config, storage *os.File) *SimpleServer {
 	return &SimpleServer{Host: conf.Host, BaseURL: conf.BaseURL, Storage: storage, URLmap: map[string]string{}, ID: 1, Config: conf}
 }
 
@@ -52,6 +53,7 @@ func (s *SimpleServer) CheckDBStorage() error {
 			s.URLmap = c.URLmap
 		}
 	}
+	s.Connector = c
 	return err
 }
 
@@ -59,20 +61,12 @@ func (s *SimpleServer) RunServer() {
 	router := chi.NewRouter()
 	var hh handlers.HandlerHelper
 	hh.Config = s.Config
-	mylogger.Initialize("INFO")
-
-	var err error
-	switch s.Config.StorageType {
-	case config.Database:
-		err = s.CheckDBStorage()
-	case config.File:
-		err = s.CheckFileStorage()
-	default:
-	}
+	hh.Connector = s.Connector
+	var mylogger mylogger.Mylogger
+	err := mylogger.Initialize("INFO")
 	if err != nil {
-		mylogger.LogError(err)
+		log.Fatal(err)
 	}
-
 	serv := server.SimpleServer{
 		Host:    s.Host,
 		BaseURL: s.BaseURL,
@@ -81,25 +75,27 @@ func (s *SimpleServer) RunServer() {
 		ID:      s.ID,
 		Config:  s.Config,
 	}
-	hh.Server = serv
+	hh.Server = &serv
+	hh.Z = mylogger
+	hh.Router = router
 
 	var baseURL string
 	if s.BaseURL != "" {
 		baseURL = s.BaseURL + "/"
 	}
 	for k, v := range s.URLmap {
-		router.Get("/"+baseURL+k, compressor.Compress(mylogger.LogRequest(hh.HandleGetPostedURL(&serv, "/"+k, v))))
+		router.Get("/"+baseURL+k, compressor.Compress(mylogger.LogRequest(hh.HandleGetPostedURL("/"+k, v))))
 	}
 	router.HandleFunc("/", compressor.Decompress(
-		mylogger.LogRequest(hh.HandlePostURL(&serv, router))))
+		mylogger.LogRequest(hh.HandlePostURL())))
 
 	router.HandleFunc("/api/shorten", compressor.Decompress(
-		mylogger.LogRequest(hh.HandlePostAPIShorten(&serv, router))))
+		mylogger.LogRequest(hh.HandlePostAPIShorten())))
 
 	router.HandleFunc("/ping", hh.HandlePing())
 
 	router.HandleFunc("/api/shorten/batch", compressor.Decompress(
-		mylogger.LogRequest(hh.HandlePostAPIShortenBatch(&serv, router))))
+		mylogger.LogRequest(hh.HandlePostAPIShortenBatch())))
 
 	err = http.ListenAndServe(s.Host, router)
 	if err != nil {

@@ -43,8 +43,11 @@ type ResponseJSON struct {
 }
 
 type HandlerHelper struct {
-	Config config.Config
-	Server server.SimpleServer
+	Config    config.Config
+	Server    *server.SimpleServer
+	Connector *dbconnector.Connector
+	Z         mylogger.Mylogger
+	Router    *chi.Mux
 }
 
 func (hh *HandlerHelper) ShortenURL() string {
@@ -53,7 +56,7 @@ func (hh *HandlerHelper) ShortenURL() string {
 	for i := 0; i < 6; i++ {
 		index, err := rand.Int(rand.Reader, big.NewInt(int64(len(letters))))
 		if err != nil {
-			mylogger.LogError(err)
+			hh.Z.LogError(err)
 			continue
 		}
 		result[i] = letters[index.Int64()]
@@ -61,7 +64,7 @@ func (hh *HandlerHelper) ShortenURL() string {
 	return string(result)
 }
 
-func (hh *HandlerHelper) HandlePostURL(s *server.SimpleServer, router *chi.Mux) http.HandlerFunc {
+func (hh *HandlerHelper) HandlePostURL() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != "POST" {
 			http.Error(w, "Invalid request method", http.StatusBadRequest)
@@ -84,40 +87,40 @@ func (hh *HandlerHelper) HandlePostURL(s *server.SimpleServer, router *chi.Mux) 
 		shortURL := hh.ShortenURL()
 		var baseURL string
 		inDatabase := false
-		if s.BaseURL != "" {
-			baseURL = s.BaseURL + "/"
+		if hh.Server.BaseURL != "" {
+			baseURL = hh.Server.BaseURL + "/"
 		}
+
 		err = hh.WriteToStorage(shortURL, string(b))
 		if err != nil {
 			var pqErr *pq.Error
 			if hh.Config.StorageType == config.Database && errors.As(err, &pqErr) {
 				if pqErr.Code == pgerrcode.UniqueViolation {
-					mylogger.LogError(err)
-					c := dbconnector.NewConnector(hh.Config.DatabaseDSN)
-					err = c.Connect(func(db *sql.DB, args ...interface{}) error {
-						return c.SelectShortURL(db, string(b))
+					hh.Z.LogError(err)
+					err = hh.Connector.Connect(func(db *sql.DB, args ...interface{}) error {
+						return hh.Connector.SelectShortURL(db, string(b))
 					})
 					if err != nil {
 						http.Error(w, "Unable to get short url from database", http.StatusInternalServerError)
 						return
 					}
-					shortURL = c.LastResult
+					shortURL = hh.Connector.LastResult
 					inDatabase = true
 				}
 
 			} else {
-				mylogger.LogError(err)
+				hh.Z.LogError(err)
 				http.Error(w, fmt.Errorf("error while working with database: %w", err).Error(), http.StatusInternalServerError)
 				return
 			}
 		} else {
-			s.ID++
-			s.URLmap[shortURL] = string(b)
-			router.Get("/"+baseURL+shortURL, compressor.Compress(mylogger.LogRequest(hh.HandleGetPostedURL(s, "/"+shortURL, string(b))))) //так и не смог придумать как убрать отсюда роутер
+			hh.Server.ID++
+			hh.Server.URLmap[shortURL] = string(b)
+			hh.Router.Get("/"+baseURL+shortURL, compressor.Compress(hh.Z.LogRequest(hh.HandleGetPostedURL("/"+shortURL, string(b))))) //нет возможности (или я её не вижу), чтобы вынести роутинг отдельно от обработчика, ведь url для сокращения мы получаем из запроса
 
 		}
 		w.Header().Set("Content-Type", "text/plain")
-		respBody := "http://" + s.Host + "/" + baseURL + shortURL
+		respBody := "http://" + hh.Server.Host + "/" + baseURL + shortURL
 		w.Header().Set("Content-Length", strconv.FormatInt(int64(len(respBody)), 10))
 		if !inDatabase {
 			w.WriteHeader(http.StatusCreated)
@@ -128,14 +131,14 @@ func (hh *HandlerHelper) HandlePostURL(s *server.SimpleServer, router *chi.Mux) 
 	}
 }
 
-func (hh *HandlerHelper) HandleGetPostedURL(s *server.SimpleServer, path string, origin string) http.HandlerFunc {
+func (hh *HandlerHelper) HandleGetPostedURL(path string, origin string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Add("Location", origin)
 		w.WriteHeader(http.StatusTemporaryRedirect)
 	}
 }
 
-func (hh *HandlerHelper) HandlePostAPIShorten(s *server.SimpleServer, router *chi.Mux) http.HandlerFunc {
+func (hh *HandlerHelper) HandlePostAPIShorten() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != "POST" {
 			http.Error(w, "Invalid request method", http.StatusBadRequest)
@@ -166,8 +169,8 @@ func (hh *HandlerHelper) HandlePostAPIShorten(s *server.SimpleServer, router *ch
 		shortURL := hh.ShortenURL()
 		var baseURL string
 		inDatabase := false
-		if s.BaseURL != "" {
-			baseURL = s.BaseURL + "/"
+		if hh.Server.BaseURL != "" {
+			baseURL = hh.Server.BaseURL + "/"
 		}
 		err = hh.WriteToStorage(shortURL, string(b))
 
@@ -175,32 +178,31 @@ func (hh *HandlerHelper) HandlePostAPIShorten(s *server.SimpleServer, router *ch
 			var pqErr *pq.Error
 			if hh.Config.StorageType == config.Database && errors.As(err, &pqErr) {
 				if pqErr.Code == pgerrcode.UniqueViolation {
-					mylogger.LogError(err)
-					c := dbconnector.NewConnector(hh.Config.DatabaseDSN)
-					err = c.Connect(func(db *sql.DB, args ...interface{}) error {
-						return c.SelectShortURL(db, string(b))
+					hh.Z.LogError(err)
+					err = hh.Connector.Connect(func(db *sql.DB, args ...interface{}) error {
+						return hh.Connector.SelectShortURL(db, string(b))
 					})
 					if err != nil {
 						http.Error(w, "Unable to get short url from database", http.StatusInternalServerError)
 						return
 					}
-					shortURL = c.LastResult
+					shortURL = hh.Connector.LastResult
 					inDatabase = true
 				}
 
 			} else {
-				mylogger.LogError(err)
+				hh.Z.LogError(err)
 				http.Error(w, fmt.Errorf("error while working with database: %w", err).Error(), http.StatusInternalServerError)
 				return
 			}
 		} else {
-			s.ID++
-			s.URLmap[shortURL] = d.URL
-			router.Get("/"+baseURL+shortURL, compressor.Compress(mylogger.LogRequest(hh.HandleGetPostedURL(s, "/"+shortURL, d.URL))))
+			hh.Server.ID++
+			hh.Server.URLmap[shortURL] = d.URL
+			hh.Router.Get("/"+baseURL+shortURL, compressor.Compress(hh.Z.LogRequest(hh.HandleGetPostedURL("/"+shortURL, d.URL))))
 		}
 
 		res := map[string]string{
-			"result": "http://" + s.Host + "/" + baseURL + shortURL,
+			"result": "http://" + hh.Server.Host + "/" + baseURL + shortURL,
 		}
 		respBody, err := json.MarshalIndent(res, "", "	")
 		if err != nil {
@@ -219,8 +221,7 @@ func (hh *HandlerHelper) HandlePostAPIShorten(s *server.SimpleServer, router *ch
 
 func (hh *HandlerHelper) HandlePing() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		c := dbconnector.NewConnector(hh.Config.DatabaseDSN)
-		err := c.Connect(nil)
+		err := hh.Connector.Connect(nil)
 		if err != nil {
 			http.Error(w, "Unable to connect to database", http.StatusInternalServerError)
 			return
@@ -233,9 +234,8 @@ func (hh *HandlerHelper) WriteToStorage(shortened string, origin string) error {
 	var err error
 	switch hh.Config.StorageType {
 	case config.Database:
-		c := dbconnector.NewConnector(hh.Config.DatabaseDSN)
-		err = c.Connect(func(db *sql.DB, args ...interface{}) error {
-			return c.InsertURL(db, shortened, origin)
+		err = hh.Connector.Connect(func(db *sql.DB, args ...interface{}) error {
+			return hh.Connector.InsertURL(db, shortened, origin)
 		})
 	case config.File:
 		err = WriteToFileStorage(hh.Server.Storage, origin, shortened, hh.Server.ID)
@@ -245,7 +245,7 @@ func (hh *HandlerHelper) WriteToStorage(shortened string, origin string) error {
 	return err
 }
 
-func (hh *HandlerHelper) HandlePostAPIShortenBatch(s *server.SimpleServer, router *chi.Mux) http.HandlerFunc {
+func (hh *HandlerHelper) HandlePostAPIShortenBatch() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != "POST" {
 			http.Error(w, "Invalid request method", http.StatusBadRequest)
@@ -277,22 +277,22 @@ func (hh *HandlerHelper) HandlePostAPIShortenBatch(s *server.SimpleServer, route
 		data := make(map[string]string)
 		responseData := make(map[string]string)
 		var baseURL string
-		if s.BaseURL != "" {
-			baseURL = s.BaseURL + "/"
+		if hh.Server.BaseURL != "" {
+			baseURL = hh.Server.BaseURL + "/"
 		}
 		for _, val := range bJSON.Data {
 			shortURL := hh.ShortenURL()
 
-			router.Get("/"+baseURL+shortURL, compressor.Compress(mylogger.LogRequest(hh.HandleGetPostedURL(s, "/"+shortURL, val.URL))))
+			hh.Router.Get("/"+baseURL+shortURL, compressor.Compress(hh.Z.LogRequest(hh.HandleGetPostedURL("/"+shortURL, val.URL))))
 
-			s.URLmap[shortURL] = val.URL
+			hh.Server.URLmap[shortURL] = val.URL
 			data[shortURL] = val.URL
 			responseData[shortURL] = val.CorrelationID
 
 			if hh.Config.StorageType == config.File {
-				err = WriteToFileStorage(s.Storage, val.URL, shortURL, hh.Server.ID)
+				err = WriteToFileStorage(hh.Server.Storage, val.URL, shortURL, hh.Server.ID)
 				if err != nil {
-					mylogger.LogError(err)
+					hh.Z.LogError(err)
 				} else {
 					hh.Server.ID++
 				}
@@ -300,18 +300,17 @@ func (hh *HandlerHelper) HandlePostAPIShortenBatch(s *server.SimpleServer, route
 		}
 
 		if hh.Config.StorageType == config.Database {
-			c := dbconnector.NewConnector(hh.Config.DatabaseDSN)
-			err := c.Connect(func(db *sql.DB, args ...interface{}) error {
-				return c.InsertBatchToDatabase(db, data)
+			err := hh.Connector.Connect(func(db *sql.DB, args ...interface{}) error {
+				return hh.Connector.InsertBatchToDatabase(db, data)
 			})
 			if err != nil {
-				mylogger.LogError(err)
+				hh.Z.LogError(err)
 			}
 		}
 
 		temp := make([]ResponseJSON, 0)
 		for key, value := range responseData {
-			temp = append(temp, ResponseJSON{value, "http://" + s.Host + "/" + baseURL + key})
+			temp = append(temp, ResponseJSON{value, "http://" + hh.Server.Host + "/" + baseURL + key})
 		}
 		respBody, err := json.Marshal(temp)
 		if err != nil {

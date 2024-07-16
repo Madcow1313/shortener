@@ -22,9 +22,11 @@ type (
 	}
 )
 
-var ZapLogger *zap.Logger = zap.L()
+type Mylogger struct {
+	Z *zap.Logger
+}
 
-func Initialize(level string) error {
+func (ZapLogger *Mylogger) Initialize(level string) error {
 	lvl, err := zap.ParseAtomicLevel(level)
 	if err != nil {
 		return err
@@ -35,11 +37,12 @@ func Initialize(level string) error {
 	if err != nil {
 		return err
 	}
-	ZapLogger = zl
+	zl.Sync()
+	ZapLogger.Z = zl
 	return nil
 }
 
-func LogRequest(h http.HandlerFunc) http.HandlerFunc {
+func (ZapLogger *Mylogger) LogRequest(h http.HandlerFunc) http.HandlerFunc {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		start := time.Now()
 		responseData := &ResponseData{
@@ -52,22 +55,22 @@ func LogRequest(h http.HandlerFunc) http.HandlerFunc {
 		}
 		h(&lw, r)
 		duration := time.Since(start)
-		ZapLogger.Log(ZapLogger.Level(), "Incoming request",
+		ZapLogger.Z.Log(ZapLogger.Z.Level(), "Incoming request",
 			zap.String("method", r.Method),
 			zap.String("URI", r.RequestURI),
 			zap.String("duration", duration.String()),
 		)
 		status := strconv.FormatInt(int64(lw.ResponseData.Status), 10)
 		size := strconv.FormatInt(int64(lw.ResponseData.Size), 10)
-		ZapLogger.Log(ZapLogger.Level(), "Response",
+		ZapLogger.Z.Log(ZapLogger.Z.Level(), "Response",
 			zap.String("status", status),
 			zap.String("size", size),
 		)
 	})
 }
 
-func LogError(err error) {
-	ZapLogger.Log(ZapLogger.Level(), "error:", zap.Error(err))
+func (ZapLogger *Mylogger) LogError(err error) {
+	ZapLogger.Z.Log(ZapLogger.Z.Level(), "error:", zap.Error(err))
 }
 
 func (r *LoggingResponseWriter) Write(b []byte) (int, error) {

@@ -3,6 +3,7 @@ package server
 import (
 	"os"
 	"shortener/cmd/shortener/config"
+	"shortener/internal/dbconnector"
 )
 
 type Server interface {
@@ -12,10 +13,11 @@ type Server interface {
 type SimpleServer struct {
 	Host,
 	BaseURL string
-	URLmap  map[string]string
-	ID      int64
-	Storage *os.File
-	Config  config.Config
+	URLmap    map[string]string
+	ID        int64
+	Storage   *os.File
+	Config    config.Config
+	Connector *dbconnector.Connector
 }
 
 type URLDataJSON struct {

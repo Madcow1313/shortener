@@ -18,6 +18,8 @@ type Connector struct {
 	DatabaseDSN string
 	LastResult  string
 	URLmap      map[string]string
+	DB          *sql.DB
+	Z           mylogger.Mylogger
 }
 
 func NewConnector(databaseDSN string) *Connector {
@@ -25,17 +27,20 @@ func NewConnector(databaseDSN string) *Connector {
 }
 
 func (c *Connector) Connect(connectFunc func(db *sql.DB, args ...interface{}) error) error {
-	db, err := sql.Open("postgres", c.DatabaseDSN)
-	if err != nil {
-		return err
+	if c.DB == nil {
+		db, err := sql.Open("postgres", c.DatabaseDSN)
+		if err != nil {
+			return err
+		}
+		c.DB = db
 	}
-	defer db.Close()
-	err = db.Ping()
+
+	err := c.DB.Ping()
 	if err != nil {
 		return err
 	}
 	if connectFunc != nil {
-		err = connectFunc(db)
+		err = connectFunc(c.DB)
 		return err
 	}
 	return nil
@@ -44,7 +49,7 @@ func (c *Connector) Connect(connectFunc func(db *sql.DB, args ...interface{}) er
 func (c *Connector) CreateTable(db *sql.DB) error {
 	_, err := db.Exec(createQuery)
 	if err != nil {
-		mylogger.LogError(err)
+		c.Z.LogError(err)
 		return err
 	}
 	return nil
@@ -53,7 +58,7 @@ func (c *Connector) CreateTable(db *sql.DB) error {
 func (c *Connector) InsertURL(db *sql.DB, key, value string) error {
 	_, err := db.Exec(insertQuery, key, value)
 	if err != nil {
-		mylogger.LogError(err)
+		c.Z.LogError(err)
 		return err
 	}
 	return nil
@@ -62,17 +67,17 @@ func (c *Connector) InsertURL(db *sql.DB, key, value string) error {
 func (c *Connector) ReadFromDB(db *sql.DB) error {
 	rows, err := db.Query(selectQuery)
 	if err != nil {
-		mylogger.LogError(err)
+		c.Z.LogError(err)
 		return err
 	}
 	if rows.Err() != nil {
-		mylogger.LogError(rows.Err())
+		c.Z.LogError(rows.Err())
 		return err
 	}
 	c.URLmap = make(map[string]string)
 	for rows.Next() {
 		var short, origin string
-		rows.Scan(&short, origin)
+		rows.Scan(&short, &origin)
 		c.URLmap[short] = origin
 	}
 	return nil
