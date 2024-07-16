@@ -213,6 +213,9 @@ func (hh *HandlerHelper) HandlePostAPIShortenBatch(s *server.SimpleServer, route
 		}
 		defer r.Body.Close()
 
+		// b = []byte(
+		// 	`[{"correlation_id":"860173f2-d841-4067-a14e-9f2906757e2c","original_url":"http://ogmnttnq2pmi.biz"},{"correlation_id":"44a67738-4d9c-4aaf-abdf-a7baeab52bde","original_url":"http://atk6qai0.yandex/fddzill"}]`,
+		// )
 		var bJSON BatchJSON
 
 		bJSON.Data = make([]DataBatchJSON, 0)
@@ -261,15 +264,15 @@ func (hh *HandlerHelper) HandlePostAPIShortenBatch(s *server.SimpleServer, route
 		for key, value := range responseData {
 			temp = append(temp, ResponseJSON{value, "http://" + s.Host + "/" + baseURL + key})
 		}
-		response, err := json.MarshalIndent(temp, "	", "")
+		respBody, err := json.Marshal(temp)
 		if err != nil {
 			http.Error(w, "Unable to marshal response", http.StatusBadRequest)
 			return
 		}
 		w.Header().Set("Content-Type", "application/json")
-		w.Header().Set("Content-Length", strconv.FormatInt(int64(len(response)), 10))
+		w.Header().Set("Content-Length", strconv.FormatInt(int64(len(respBody)), 10))
 		w.WriteHeader(http.StatusCreated)
-		w.Write([]byte(response))
+		w.Write([]byte(respBody))
 	}
 }
 

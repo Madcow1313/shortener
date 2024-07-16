@@ -87,8 +87,8 @@ func (c *Connector) InsertBatchToDatabase(db *sql.DB, data map[string]string) er
 		if err != nil {
 			continue
 		}
-		_, err = stmt.Query(key, val)
-		if err != nil {
+		r, err := stmt.Query(key, val)
+		if err != nil || r.Err() != nil {
 			tx.Rollback()
 			continue
 		}
