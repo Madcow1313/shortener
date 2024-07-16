@@ -193,7 +193,7 @@ func (hh *HandlerHelper) WriteToStorage(shortened string, origin string) error {
 	return err
 }
 
-func (hh *HandlerHelper) HandlePostApiShortenBatch(s *server.SimpleServer, router *chi.Mux) http.HandlerFunc {
+func (hh *HandlerHelper) HandlePostAPIShortenBatch(s *server.SimpleServer, router *chi.Mux) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != "POST" {
 			http.Error(w, "Invalid request method", http.StatusBadRequest)
@@ -214,19 +214,6 @@ func (hh *HandlerHelper) HandlePostApiShortenBatch(s *server.SimpleServer, route
 		defer r.Body.Close()
 
 		var bJSON BatchJSON
-
-		b = []byte(
-			`[
-    {
-        "correlation_id": "<строковый идентификатор из объекта запроса>",
-        "short_url": "<результирующий сокращённый URL>"
-    },
-    {
-        "correlation_id": "<строковый идентификатор из объекта запроса>",
-        "short_url": "<результирующий сокращённый URL>"
-    }
-] `,
-		)
 
 		bJSON.Data = make([]DataBatchJSON, 0)
 		err = json.Unmarshal(b, &bJSON.Data)
