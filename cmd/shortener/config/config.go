@@ -20,11 +20,11 @@ type Config struct {
 }
 
 const (
-	defaultHost       = "localhost:8080"
-	defaultBaseURL    = ""
-	defaultURLstorage = ""
-	//defaultDatabaseDSN = "host=localhost user=postgres password=postgres dbname=postgres sslmode=disable"
-	defaultDatabaseDSN = ""
+	defaultHost        = "localhost:8080"
+	defaultBaseURL     = ""
+	defaultURLstorage  = ""
+	defaultDatabaseDSN = "host=localhost user=postgres password=postgres dbname=postgres sslmode=disable"
+	// defaultDatabaseDSN = ""
 )
 
 func (c *Config) SetConfigParameteres() {

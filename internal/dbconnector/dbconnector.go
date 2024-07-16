@@ -19,8 +19,8 @@ type Connector struct {
 	URLmap      map[string]string
 }
 
-func NewConnector(databaseDSN string) Connector {
-	return Connector{DatabaseDSN: databaseDSN}
+func NewConnector(databaseDSN string) *Connector {
+	return &Connector{DatabaseDSN: databaseDSN}
 }
 
 func (c *Connector) Connect(connectFunc func(db *sql.DB, args ...interface{}) error) error {
@@ -75,4 +75,24 @@ func (c *Connector) ReadFromDB(db *sql.DB) error {
 		c.URLmap[short] = origin
 	}
 	return nil
+}
+
+func (c *Connector) InsertBatchToDatabase(db *sql.DB, data map[string]string) error {
+	stmt, err := db.Prepare(insertQuery)
+	if err != nil {
+		return err
+	}
+	for key, val := range data {
+		tx, err := db.Begin()
+		if err != nil {
+			continue
+		}
+		_, err = stmt.Query(key, val)
+		if err != nil {
+			tx.Rollback()
+			continue
+		}
+		tx.Commit()
+	}
+	return err
 }

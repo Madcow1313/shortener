@@ -81,6 +81,7 @@ func (s *SimpleServer) RunServer() {
 		ID:      s.ID,
 		Config:  s.Config,
 	}
+	hh.Server = serv
 
 	var baseURL string
 	if s.BaseURL != "" {
@@ -96,6 +97,9 @@ func (s *SimpleServer) RunServer() {
 		mylogger.LogRequest(hh.HandlePostAPIShorten(&serv, router))))
 
 	router.HandleFunc("/ping", hh.HandlePing())
+
+	router.HandleFunc("/api/shorten/batch", compressor.Compress(
+		mylogger.LogRequest(hh.HandlePostApiShortenBatch(&serv, router))))
 
 	err = http.ListenAndServe(s.Host, router)
 	if err != nil {

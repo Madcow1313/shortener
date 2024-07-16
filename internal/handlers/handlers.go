@@ -24,8 +24,23 @@ type DataJSON struct {
 	URL string `json:"url"`
 }
 
+type DataBatchJSON struct {
+	CorrelationID string `json:"correlation_id"`
+	URL           string `json:"original_url"`
+}
+
+type BatchJSON struct {
+	Data []DataBatchJSON
+}
+
+type ResponseJSON struct {
+	CorrelationID string `json:"correlation_id"`
+	Short_url     string `json:"short_url"`
+}
+
 type HandlerHelper struct {
 	Config config.Config
+	Server server.SimpleServer
 }
 
 func (hh *HandlerHelper) ShortenURL() string {
@@ -65,18 +80,7 @@ func (hh *HandlerHelper) HandlePostURL(s *server.SimpleServer, router *chi.Mux) 
 		str := hh.ShortenURL()
 		s.URLmap[str] = string(b)
 
-		switch s.Config.StorageType {
-		case config.Database:
-			c := dbconnector.NewConnector(s.Config.DatabaseDSN)
-			c.Connect(func(db *sql.DB, args ...interface{}) error {
-				return c.InsertURL(db, str, string(b))
-			})
-		case config.File:
-			err = WriteToStorage(s.Storage, string(b), str, s.ID)
-
-		default:
-		}
-
+		err = hh.WriteToStorage(str, string(b))
 		if err != nil {
 			mylogger.LogError(err)
 		} else {
@@ -132,17 +136,7 @@ func (hh *HandlerHelper) HandlePostAPIShorten(s *server.SimpleServer, router *ch
 		}
 
 		str := hh.ShortenURL()
-		switch s.Config.StorageType {
-		case config.Database:
-			c := dbconnector.NewConnector(s.Config.DatabaseDSN)
-			c.Connect(func(db *sql.DB, args ...interface{}) error {
-				return c.InsertURL(db, str, string(b))
-			})
-		case config.File:
-			err = WriteToStorage(s.Storage, string(b), str, s.ID)
-
-		default:
-		}
+		err = hh.WriteToStorage(str, string(b))
 		if err != nil {
 			mylogger.LogError(err)
 		} else {
@@ -171,7 +165,115 @@ func (hh *HandlerHelper) HandlePostAPIShorten(s *server.SimpleServer, router *ch
 	}
 }
 
-func WriteToStorage(file *os.File, originalURL string, shortURL string, id int64) error {
+func (hh *HandlerHelper) HandlePing() http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		c := dbconnector.NewConnector(hh.Config.DatabaseDSN)
+		err := c.Connect(nil)
+		if err != nil {
+			http.Error(w, "Unable to connect to database", http.StatusInternalServerError)
+			return
+		}
+		w.WriteHeader(http.StatusOK)
+	}
+}
+
+func (hh *HandlerHelper) WriteToStorage(shortened string, origin string) error {
+	var err error
+	switch hh.Config.StorageType {
+	case config.Database:
+		c := dbconnector.NewConnector(hh.Config.DatabaseDSN)
+		err = c.Connect(func(db *sql.DB, args ...interface{}) error {
+			return c.InsertURL(db, shortened, origin)
+		})
+	case config.File:
+		err = WriteToFileStorage(hh.Server.Storage, origin, shortened, hh.Server.ID)
+
+	default:
+	}
+	return err
+}
+
+func (hh *HandlerHelper) HandlePostApiShortenBatch(s *server.SimpleServer, router *chi.Mux) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != "POST" {
+			http.Error(w, "Invalid request method", http.StatusBadRequest)
+			return
+		}
+
+		err := r.ParseForm()
+		if err != nil {
+			http.Error(w, "Unable to parse form", http.StatusBadRequest)
+			return
+		}
+
+		b, err := io.ReadAll(r.Body)
+		if err != nil {
+			http.Error(w, "Unable to read body", http.StatusBadRequest)
+			return
+		}
+		defer r.Body.Close()
+
+		var bJSON BatchJSON
+
+		bJSON.Data = make([]DataBatchJSON, 0)
+		err = json.Unmarshal(b, &bJSON.Data)
+		if err != nil {
+			http.Error(w, "Unable to parse json", http.StatusBadRequest)
+			return
+		}
+
+		data := make(map[string]string)
+		response_data := make(map[string]string)
+		var baseURL string
+		if s.BaseURL != "" {
+			baseURL = s.BaseURL + "/"
+		}
+		for _, val := range bJSON.Data {
+			short_url := hh.ShortenURL()
+
+			router.Get("/"+baseURL+short_url, compressor.Compress(mylogger.LogRequest(hh.HandleGetPostedURL(s, "/"+short_url, val.URL))))
+
+			s.URLmap[short_url] = val.URL
+			data[short_url] = val.URL
+			response_data[val.CorrelationID] = short_url
+
+			if hh.Config.StorageType == config.File {
+				err = WriteToFileStorage(s.Storage, val.URL, short_url, hh.Server.ID)
+				if err != nil {
+					mylogger.LogError(err)
+				} else {
+					hh.Server.ID++
+				}
+			}
+		}
+
+		if hh.Config.StorageType == config.Database {
+			c := dbconnector.NewConnector(hh.Config.DatabaseDSN)
+			err := c.Connect(func(db *sql.DB, args ...interface{}) error {
+				return c.InsertBatchToDatabase(db, data)
+			})
+			if err != nil {
+				mylogger.LogError(err)
+			}
+		}
+
+		temp := make([]ResponseJSON, 0)
+		for key, value := range response_data {
+			temp = append(temp, ResponseJSON{key, "http://" + s.Host + "/" + baseURL + value})
+		}
+		response, err := json.MarshalIndent(temp, "	", "")
+		if err != nil {
+			http.Error(w, "Unable to marshal response", http.StatusBadRequest)
+			return
+		}
+		w.Header().Set("Content-Type", "application/json")
+		w.Header().Set("Content-Length", strconv.FormatInt(int64(len(response)), 10))
+		w.WriteHeader(http.StatusCreated)
+		w.Write([]byte(response))
+	}
+}
+
+func WriteToFileStorage(file *os.File, originalURL string, shortURL string, id int64) error {
 	data := server.URLDataJSON{
 		ID:          id,
 		OriginalURL: originalURL,
@@ -183,16 +285,4 @@ func WriteToStorage(file *os.File, originalURL string, shortURL string, id int64
 	}
 	_, err = file.WriteString(string(b) + "\n")
 	return err
-}
-
-func (hh *HandlerHelper) HandlePing() http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		c := dbconnector.NewConnector(hh.Config.DatabaseDSN)
-		err := c.Connect(nil)
-		if err != nil {
-			http.Error(w, "Unable to connect to database", http.StatusInternalServerError)
-			return
-		}
-		w.WriteHeader(http.StatusOK)
-	}
 }
