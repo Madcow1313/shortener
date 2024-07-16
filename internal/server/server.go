@@ -98,7 +98,7 @@ func (s *SimpleServer) RunServer() {
 
 	router.HandleFunc("/ping", hh.HandlePing())
 
-	router.HandleFunc("/api/shorten/batch", compressor.Compress(
+	router.HandleFunc("/api/shorten/batch", compressor.Decompress(
 		mylogger.LogRequest(hh.HandlePostAPIShortenBatch(&serv, router))))
 
 	err = http.ListenAndServe(s.Host, router)
