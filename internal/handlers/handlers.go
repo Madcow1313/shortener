@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 	"math/big"
 	"net/http"
@@ -18,6 +19,7 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/jackc/pgerrcode"
+	"github.com/lib/pq"
 )
 
 type SimpleServer server.SimpleServer
@@ -87,18 +89,28 @@ func (hh *HandlerHelper) HandlePostURL(s *server.SimpleServer, router *chi.Mux) 
 		}
 		err = hh.WriteToStorage(shortURL, string(b))
 		if err != nil {
-			mylogger.LogError(err)
-			c := dbconnector.NewConnector(hh.Config.DatabaseDSN)
-			err = c.Connect(func(db *sql.DB, args ...interface{}) error {
-				return c.SelectShortURL(db, string(b))
-			})
-			if err != nil {
-				http.Error(w, "Unable to get short url from databse", http.StatusInternalServerError)
+			var pqErr *pq.Error
+			if hh.Config.StorageType == config.Database && errors.As(err, &pqErr) {
+				if pqErr.Code == pgerrcode.UniqueViolation {
+					mylogger.LogError(err)
+					c := dbconnector.NewConnector(hh.Config.DatabaseDSN)
+					err = c.Connect(func(db *sql.DB, args ...interface{}) error {
+						return c.SelectShortURL(db, string(b))
+					})
+					if err != nil {
+						http.Error(w, "Unable to get short url from database", http.StatusInternalServerError)
+						return
+					}
+					shortURL = c.LastResult
+					inDatabase = true
+				}
+
+			} else {
+				mylogger.LogError(err)
+				http.Error(w, fmt.Errorf("error while working with database: %w", err).Error(), http.StatusInternalServerError)
 				return
 			}
-			shortURL = c.LastResult
-			inDatabase = true
-		} else if (err != nil && hh.Config.StorageType != config.Database) || err == nil {
+		} else {
 			s.ID++
 			s.URLmap[shortURL] = string(b)
 			router.Get("/"+baseURL+shortURL, compressor.Compress(mylogger.LogRequest(hh.HandleGetPostedURL(s, "/"+shortURL, string(b))))) //так и не смог придумать как убрать отсюда роутер
@@ -158,19 +170,28 @@ func (hh *HandlerHelper) HandlePostAPIShorten(s *server.SimpleServer, router *ch
 			baseURL = s.BaseURL + "/"
 		}
 		err = hh.WriteToStorage(shortURL, string(b))
+
 		if err != nil {
-			mylogger.LogError(err)
-			if errors.Is(err, errors.New(pgerrcode.UniqueViolation)) {
-				c := dbconnector.NewConnector(hh.Config.DatabaseDSN)
-				err = c.Connect(func(db *sql.DB, args ...interface{}) error {
-					return c.SelectShortURL(db, string(b))
-				})
-				if err != nil {
-					http.Error(w, "Unable to get short url from databse", http.StatusInternalServerError)
-					return
+			var pqErr *pq.Error
+			if hh.Config.StorageType == config.Database && errors.As(err, &pqErr) {
+				if pqErr.Code == pgerrcode.UniqueViolation {
+					mylogger.LogError(err)
+					c := dbconnector.NewConnector(hh.Config.DatabaseDSN)
+					err = c.Connect(func(db *sql.DB, args ...interface{}) error {
+						return c.SelectShortURL(db, string(b))
+					})
+					if err != nil {
+						http.Error(w, "Unable to get short url from database", http.StatusInternalServerError)
+						return
+					}
+					shortURL = c.LastResult
+					inDatabase = true
 				}
-				shortURL = c.LastResult
-				inDatabase = true
+
+			} else {
+				mylogger.LogError(err)
+				http.Error(w, fmt.Errorf("error while working with database: %w", err).Error(), http.StatusInternalServerError)
+				return
 			}
 		} else {
 			s.ID++
