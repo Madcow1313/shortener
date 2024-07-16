@@ -90,7 +90,6 @@ func (hh *HandlerHelper) HandlePostURL() http.HandlerFunc {
 		if hh.Server.BaseURL != "" {
 			baseURL = hh.Server.BaseURL + "/"
 		}
-
 		err = hh.WriteToStorage(shortURL, string(b))
 		if err != nil {
 			var pqErr *pq.Error

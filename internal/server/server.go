@@ -63,6 +63,7 @@ func (s *SimpleServer) RunServer() {
 	hh.Config = s.Config
 	hh.Connector = dbconnector.NewConnector(hh.Config.DatabaseDSN)
 	var mylogger mylogger.Mylogger
+
 	err := mylogger.Initialize("INFO")
 	if err != nil {
 		log.Fatal(err)
@@ -77,6 +78,7 @@ func (s *SimpleServer) RunServer() {
 	}
 	hh.Server = &serv
 	hh.Z = mylogger
+	hh.Connector.Z = &mylogger
 	hh.Router = router
 
 	var baseURL string

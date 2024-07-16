@@ -19,7 +19,7 @@ type Connector struct {
 	LastResult  string
 	URLmap      map[string]string
 	DB          *sql.DB
-	Z           mylogger.Mylogger
+	Z           *mylogger.Mylogger
 }
 
 func NewConnector(databaseDSN string) *Connector {
@@ -49,7 +49,6 @@ func (c *Connector) Connect(connectFunc func(db *sql.DB, args ...interface{}) er
 func (c *Connector) CreateTable(db *sql.DB) error {
 	_, err := db.Exec(createQuery)
 	if err != nil {
-		c.Z.LogError(err)
 		return err
 	}
 	return nil
@@ -67,12 +66,10 @@ func (c *Connector) InsertURL(db *sql.DB, key, value string) error {
 func (c *Connector) ReadFromDB(db *sql.DB) error {
 	rows, err := db.Query(selectQuery)
 	if err != nil {
-		c.Z.LogError(err)
 		return err
 	}
 	if rows.Err() != nil {
-		c.Z.LogError(rows.Err())
-		return err
+		return rows.Err()
 	}
 	c.URLmap = make(map[string]string)
 	for rows.Next() {
