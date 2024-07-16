@@ -220,7 +220,7 @@ func (hh *HandlerHelper) HandlePostAPIShortenBatch(s *server.SimpleServer, route
 
 		bJSON.Data = make([]DataBatchJSON, 0)
 		err = json.Unmarshal(b, &bJSON.Data)
-		if err != nil {
+		if err != nil && err != io.EOF {
 			http.Error(w, "Unable to parse json", http.StatusBadRequest)
 			return
 		}
