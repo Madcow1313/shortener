@@ -88,19 +88,17 @@ func (hh *HandlerHelper) HandlePostURL(s *server.SimpleServer, router *chi.Mux) 
 		err = hh.WriteToStorage(shortURL, string(b))
 		if err != nil {
 			mylogger.LogError(err)
+			c := dbconnector.NewConnector(hh.Config.DatabaseDSN)
+			err = c.Connect(func(db *sql.DB, args ...interface{}) error {
+				return c.SelectShortURL(db, string(b))
+			})
 			if err != nil {
-				c := dbconnector.NewConnector(hh.Config.DatabaseDSN)
-				err = c.Connect(func(db *sql.DB, args ...interface{}) error {
-					return c.SelectShortURL(db, string(b))
-				})
-				if err != nil {
-					http.Error(w, "Unable to get short url from databse", http.StatusInternalServerError)
-					return
-				}
-				shortURL = c.LastResult
-				inDatabase = true
+				http.Error(w, "Unable to get short url from databse", http.StatusInternalServerError)
+				return
 			}
-		} else {
+			shortURL = c.LastResult
+			inDatabase = true
+		} else if (err != nil && hh.Config.StorageType != config.Database) || err == nil {
 			s.ID++
 			s.URLmap[shortURL] = string(b)
 			router.Get("/"+baseURL+shortURL, compressor.Compress(mylogger.LogRequest(hh.HandleGetPostedURL(s, "/"+shortURL, string(b))))) //так и не смог придумать как убрать отсюда роутер
