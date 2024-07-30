@@ -141,7 +141,6 @@ func (hh *HandlerHelper) HandlePostURL() http.HandlerFunc {
 			hh.Server.ID++
 			hh.Server.URLmap[shortURL] = string(b)
 			hh.Router.Get("/"+baseURL+shortURL, compressor.Compress(hh.Z.LogRequest(hh.HandleGetPostedURL("/"+shortURL, string(b))))) //нет возможности (или я её не вижу), чтобы вынести роутинг отдельно от обработчика, ведь url для сокращения мы получаем из запроса
-
 		}
 		w.Header().Set("Content-Type", "text/plain")
 		respBody := "http://" + hh.Server.Host + "/" + baseURL + shortURL
@@ -160,13 +159,10 @@ func (hh *HandlerHelper) HandleGetPostedURL(path string, origin string) http.Han
 		if hh.Config.StorageType == config.Database {
 			temp := strings.Split(path, "/")
 			short := temp[len(temp)-1]
-			err := hh.Connector.Connect(func(db *sql.DB, args ...interface{}) error {
+			hh.Connector.Connect(func(db *sql.DB, args ...interface{}) error {
 				return hh.Connector.IsShortDeleted(db, short)
 			})
-			if err != nil {
-				http.Error(w, "No such url", http.StatusNotFound)
-				return
-			} else if hh.Connector.IsDeleted {
+			if hh.Connector.IsDeleted {
 				w.WriteHeader(http.StatusGone)
 				return
 			}
