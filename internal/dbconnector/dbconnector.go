@@ -6,7 +6,6 @@ import (
 	"shortener/internal/mylogger"
 
 	"github.com/lib/pq"
-	_ "github.com/lib/pq"
 )
 
 const (
@@ -91,25 +90,27 @@ func (c *Connector) ReadFromDB(db *sql.DB) error {
 	return nil
 }
 
-func (c *Connector) UpdateOnDelete(db *sql.DB, userID string, urls chan string) error {
+func (c *Connector) UpdateOnDelete(db *sql.DB, userID string, urls []string) error {
 	tx, _ := db.Begin()
 	stmt, err := tx.Prepare(pq.CopyIn("url", "short"))
 	if err != nil {
 		return err
 	}
 	counter := 0
-	for {
-		val, ok := <-urls
+	for _, val := range urls {
+		// val, ok := <-urls
 		stmt.Exec(val)
 		fmt.Print(counter, " ")
 		counter++
-		if !ok {
-			stmt.Exec()
-			tx.Commit()
-			fmt.Println("done")
-			break
-		}
+		// if !ok {
+		// 	stmt.Exec()
+		// 	tx.Commit()
+		// 	fmt.Println("done")
+		// 	break
+		// }
 	}
+	stmt.Exec()
+	tx.Commit()
 	return nil
 }
 

@@ -434,16 +434,16 @@ func (hh *HandlerHelper) HandleDeleteAPIUserURLs() http.HandlerFunc {
 		// 	})
 		// }
 
-		ch := make(chan string, 100)
-		go func() {
-			for _, val := range urls {
-				ch <- val
-			}
-			// close(ch)
-		}()
+		// ch := make(chan string, 100)
+		// go func() {
+		// 	for _, val := range urls {
+		// 		ch <- val
+		// 	}
+		// 	// close(ch)
+		// }()
 		go func() {
 			hh.Connector.Connect(func(db *sql.DB, args ...interface{}) error {
-				return hh.Connector.UpdateOnDelete(db, hh.GetUserIDFromCookie(w, r), ch)
+				return hh.Connector.UpdateOnDelete(db, hh.GetUserIDFromCookie(w, r), urls)
 			})
 		}()
 		w.WriteHeader(http.StatusAccepted)
