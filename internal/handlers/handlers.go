@@ -17,7 +17,6 @@ import (
 	server "shortener/internal/server/serverTypes"
 	"strconv"
 	"strings"
-	"sync"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/jackc/pgerrcode"
@@ -425,21 +424,15 @@ func (hh *HandlerHelper) HandleDeleteAPIUserURLs() http.HandlerFunc {
 			return
 		}
 		outChan := make(chan string)
-		var wg sync.WaitGroup
 		for _, val := range urls {
 			outChan <- val
 		}
-		wg.Add(1)
-		go func() {
-			for val, ok := <-outChan; ok; {
-				hh.Server.URLsToUpdate <- val
-			}
-			close(outChan)
-			wg.Done()
-		}()
+		for val, ok := <-outChan; ok; {
+			hh.Server.URLsToUpdate <- val
+		}
+		close(outChan)
 		if hh.Config.StorageType == config.Database {
 			go func() {
-				wg.Wait()
 				hh.Connector.Connect(func(db *sql.DB, args ...interface{}) error {
 					return hh.Connector.UpdateOnDelete(db, hh.GetUserIDFromCookie(w, r), hh.Server.URLsToUpdate)
 				})

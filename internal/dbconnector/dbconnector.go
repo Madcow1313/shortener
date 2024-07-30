@@ -3,6 +3,7 @@ package dbconnector
 import (
 	"database/sql"
 	"shortener/internal/mylogger"
+	"sync"
 
 	_ "github.com/lib/pq"
 )
@@ -13,7 +14,7 @@ const (
 	selectQuery         = "SELECT * FROM url"
 	selectShortURL      = "SELECT short FROM url WHERE origin=$1"
 	selectIsDeleted     = "SELECT is_deleted FROM url WHERE short=$1"
-	updateOnDeleteQuery = "UPDATE url SET is_deleted = true WHERE short=$1"
+	updateOnDeleteQuery = "UPDATE url SET is_deleted = true WHERE short=$1 AND is_deleted=false"
 )
 
 type Connector struct {
@@ -90,9 +91,9 @@ func (c *Connector) ReadFromDB(db *sql.DB) error {
 }
 
 func (c *Connector) UpdateOnDelete(db *sql.DB, userID string, urls chan string) error {
-	// var m sync.Mutex
-	// m.Lock()
-	// defer m.Unlock()
+	var m sync.Mutex
+	m.Lock()
+	defer m.Unlock()
 	stmt, err := db.Prepare(updateOnDeleteQuery)
 	if err != nil {
 		return err
