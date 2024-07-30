@@ -79,6 +79,8 @@ func (s *SimpleServer) RunServer() {
 		ID:      s.ID,
 		Config:  s.Config,
 	}
+	serv.URLsToUpdate = make(chan string)
+	defer close(serv.URLsToUpdate)
 	hh.Server = &serv
 	hh.Z = mylogger
 	hh.Connector.Z = &mylogger
@@ -104,7 +106,9 @@ func (s *SimpleServer) RunServer() {
 	router.HandleFunc("/api/shorten/batch", ba.CheckCookies(compressor.Decompress(
 		mylogger.LogRequest(hh.HandlePostAPIShortenBatch()))))
 
-	router.HandleFunc("/api/user/urls", ba.Authenticate(mylogger.LogRequest(hh.HandleGetAPIUserURLs())))
+	router.Get("/api/user/urls", ba.Authenticate(mylogger.LogRequest(hh.HandleGetAPIUserURLs())))
+
+	router.Delete("/api/user/urls", ba.Authenticate(mylogger.LogRequest(hh.HandleDeleteAPIUserURLs())))
 
 	err = http.ListenAndServe(s.Host, router)
 	if err != nil {

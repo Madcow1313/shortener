@@ -157,6 +157,20 @@ func (hh *HandlerHelper) HandlePostURL() http.HandlerFunc {
 
 func (hh *HandlerHelper) HandleGetPostedURL(path string, origin string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
+		if hh.Config.StorageType == config.Database {
+			temp := strings.Split(path, "/")
+			short := temp[len(temp)-1]
+			err := hh.Connector.Connect(func(db *sql.DB, args ...interface{}) error {
+				return hh.Connector.IsShortDeleted(db, short)
+			})
+			if err != nil {
+				http.Error(w, "No such url", http.StatusNotFound)
+				return
+			} else if hh.Connector.IsDeleted {
+				w.WriteHeader(http.StatusGone)
+				return
+			}
+		}
 		w.Header().Add("Location", origin)
 		w.WriteHeader(http.StatusTemporaryRedirect)
 	}
@@ -386,6 +400,50 @@ func (hh *HandlerHelper) HandleGetAPIUserURLs() http.HandlerFunc {
 		w.Header().Set("Content-Length", strconv.FormatInt(int64(len(respBody)), 10))
 		w.WriteHeader(http.StatusOK)
 		w.Write([]byte(respBody))
+	}
+}
+
+func (hh *HandlerHelper) HandleDeleteAPIUserURLs() http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		err := r.ParseForm()
+		if err != nil {
+			http.Error(w, "Unable to parse form", http.StatusBadRequest)
+			return
+		}
+
+		b, err := io.ReadAll(r.Body)
+		if err != nil {
+			http.Error(w, "Unable to read body", http.StatusBadRequest)
+			return
+		}
+		defer r.Body.Close()
+		urls := make([]string, 0)
+		err = json.Unmarshal(b, &urls)
+		if err != nil {
+			http.Error(w, "urls cannot be unmarshalled", http.StatusBadRequest)
+			return
+		}
+		outChan := make(chan string)
+		go func() {
+			for _, val := range urls {
+				outChan <- val
+			}
+		}()
+
+		go func() {
+			for val, ok := <-outChan; ok; {
+				hh.Server.URLsToUpdate <- val
+			}
+			close(outChan)
+		}()
+		if hh.Config.StorageType == config.Database {
+			go func() {
+				hh.Connector.Connect(func(db *sql.DB, args ...interface{}) error {
+					return hh.Connector.UpdateOnDelete(db, hh.GetUserIDFromCookie(w, r), hh.Server.URLsToUpdate)
+				})
+			}()
+		}
+		w.WriteHeader(http.StatusAccepted)
 	}
 }
 

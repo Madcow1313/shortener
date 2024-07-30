@@ -3,20 +3,24 @@ package dbconnector
 import (
 	"database/sql"
 	"shortener/internal/mylogger"
+	"sync"
 
 	_ "github.com/lib/pq"
 )
 
 const (
-	createQuery    = "CREATE TABLE IF NOT EXISTS url (short varchar, origin varchar unique, user_id varchar)"
-	insertQuery    = "INSERT INTO url (short, origin, user_id) VALUES ($1, $2, $3)"
-	selectQuery    = "SELECT * FROM url"
-	selectShortURL = "SELECT short FROM url WHERE origin=$1"
+	createQuery         = "CREATE TABLE IF NOT EXISTS url (short varchar, origin varchar unique, user_id varchar, is_deleted boolean DEFAULT false)"
+	insertQuery         = "INSERT INTO url (short, origin, user_id) VALUES ($1, $2, $3)"
+	selectQuery         = "SELECT * FROM url"
+	selectShortURL      = "SELECT short FROM url WHERE origin=$1"
+	selectIsDeleted     = "SELECT is_deleted FROM url WHERE short=$1"
+	updateOnDeleteQuery = "UPDATE url SET is_deleted = true WHERE short=$1"
 )
 
 type Connector struct {
 	DatabaseDSN string
 	LastResult  string
+	IsDeleted   bool
 	URLmap      map[string]string
 	UserURLS    map[string][]string
 	DB          *sql.DB
@@ -86,6 +90,20 @@ func (c *Connector) ReadFromDB(db *sql.DB) error {
 	return nil
 }
 
+func (c *Connector) UpdateOnDelete(db *sql.DB, userID string, urls chan string) error {
+	var m sync.Mutex
+	m.Lock()
+	defer m.Unlock()
+	stmt, err := db.Prepare(updateOnDeleteQuery)
+	if err != nil {
+		return err
+	}
+	for val, ok := <-urls; ok; {
+		stmt.Exec(val, userID)
+	}
+	return nil
+}
+
 func (c *Connector) InsertBatchToDatabase(db *sql.DB, data map[string]string, userID string) error {
 	stmt, err := db.Prepare(insertQuery)
 	if err != nil {
@@ -113,6 +131,19 @@ func (c *Connector) SelectShortURL(db *sql.DB, origin string) error {
 	}
 	r.Next()
 	err = r.Scan(&c.LastResult)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func (c *Connector) IsShortDeleted(db *sql.DB, short string) error {
+	r, err := db.Query(selectIsDeleted, short)
+	if err != nil || r.Err() != nil {
+		return err
+	}
+	r.Next()
+	err = r.Scan(&c.IsDeleted)
 	if err != nil {
 		return err
 	}
