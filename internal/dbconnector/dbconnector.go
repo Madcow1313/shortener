@@ -2,6 +2,7 @@ package dbconnector
 
 import (
 	"database/sql"
+	"fmt"
 	"shortener/internal/mylogger"
 
 	_ "github.com/lib/pq"
@@ -96,6 +97,10 @@ func (c *Connector) UpdateOnDelete(db *sql.DB, userID string, urls chan string) 
 	}
 	for val, ok := <-urls; ok; {
 		stmt.Exec(val, userID)
+		fmt.Println("deleted", val)
+		if !ok {
+			break
+		}
 	}
 	return nil
 }

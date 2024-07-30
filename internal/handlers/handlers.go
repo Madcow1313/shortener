@@ -423,13 +423,26 @@ func (hh *HandlerHelper) HandleDeleteAPIUserURLs() http.HandlerFunc {
 			http.Error(w, "urls cannot be unmarshalled", http.StatusBadRequest)
 			return
 		}
-		for _, val := range urls {
-			hh.Server.URLsToUpdate <- val
-		}
+		// for i := 0; i < 100; i++ {
+		// 	urls = append(urls, "abc")
+		// }
+		// for i, val := range urls {
+		// 	hh.Connector.Connect(func(db *sql.DB, args ...interface{}) error {
+		// 		s := strconv.FormatInt(int64(i), 10)
+		// 		return hh.Connector.InsertURL(db, val, s, "bc")
+		// 	})
+		// }
+		ch := make(chan string)
+		go func() {
+			for _, val := range urls {
+				ch <- val
+			}
+			close(ch)
+		}()
 		if hh.Config.StorageType == config.Database {
 			go func() {
 				hh.Connector.Connect(func(db *sql.DB, args ...interface{}) error {
-					return hh.Connector.UpdateOnDelete(db, hh.GetUserIDFromCookie(w, r), hh.Server.URLsToUpdate)
+					return hh.Connector.UpdateOnDelete(db, hh.GetUserIDFromCookie(w, r), ch)
 				})
 			}()
 		}
