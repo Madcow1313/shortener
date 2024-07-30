@@ -16,6 +16,7 @@ type Config struct {
 	BaseURL     string
 	URLStorage  string
 	DatabaseDSN string
+	SecretKey   string
 	StorageType int
 }
 
@@ -24,6 +25,7 @@ const (
 	defaultBaseURL     = ""
 	defaultURLstorage  = ""
 	defaultDatabaseDSN = ""
+	defaultSecretKey   = "cookieinthejar"
 )
 
 func (c *Config) SetConfigParameteres() {
@@ -31,6 +33,7 @@ func (c *Config) SetConfigParameteres() {
 	flag.StringVar(&c.BaseURL, "b", defaultBaseURL, "base url should contain at least one character")
 	flag.StringVar(&c.URLStorage, "f", defaultURLstorage, "file to store urls")
 	flag.StringVar(&c.DatabaseDSN, "d", defaultDatabaseDSN, "database connection properties")
+	flag.StringVar(&c.SecretKey, "s", defaultSecretKey, "key to check hash sum")
 	flag.Parse()
 
 	if addr := os.Getenv("SERVER_ADDRESS"); addr != "" {
@@ -44,6 +47,9 @@ func (c *Config) SetConfigParameteres() {
 	}
 	if storage := os.Getenv("FILE_STORAGE_PATH"); storage != "" {
 		c.URLStorage = storage
+	}
+	if secretKey := os.Getenv("SECRET_KEY"); secretKey != "" {
+		c.SecretKey = secretKey
 	}
 
 	c.StorageType = Memory

@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"os"
 	"shortener/cmd/shortener/config"
+	"shortener/internal/auth"
 	"shortener/internal/compressor"
 	"shortener/internal/dbconnector"
 	"shortener/internal/handlers"
@@ -21,7 +22,8 @@ type SimpleServer server.SimpleServer
 type Server server.Server
 
 func NewSimpleServer(conf config.Config, storage *os.File) *SimpleServer {
-	return &SimpleServer{Host: conf.Host, BaseURL: conf.BaseURL, Storage: storage, URLmap: map[string]string{}, ID: 1, Config: conf}
+	return &SimpleServer{Host: conf.Host, BaseURL: conf.BaseURL, Storage: storage, URLmap: map[string]string{},
+		UserURLS: map[string][]string{}, ID: 1, Config: conf}
 }
 
 func (s *SimpleServer) CheckFileStorage() error {
@@ -51,6 +53,7 @@ func (s *SimpleServer) CheckDBStorage() error {
 		})
 		if err == nil {
 			s.URLmap = c.URLmap
+			s.UserURLS = c.UserURLS
 		}
 	}
 	c.DB.Close()
@@ -80,24 +83,28 @@ func (s *SimpleServer) RunServer() {
 	hh.Z = mylogger
 	hh.Connector.Z = &mylogger
 	hh.Router = router
+	hh.UserURLS = s.UserURLS
 
 	var baseURL string
+	ba := auth.NewBasicAuth(s.Config.SecretKey)
 	if s.BaseURL != "" {
 		baseURL = s.BaseURL + "/"
 	}
 	for k, v := range s.URLmap {
 		router.Get("/"+baseURL+k, compressor.Compress(mylogger.LogRequest(hh.HandleGetPostedURL("/"+k, v))))
 	}
-	router.HandleFunc("/", compressor.Decompress(
-		mylogger.LogRequest(hh.HandlePostURL())))
+	router.HandleFunc("/", ba.CheckCookies(compressor.Decompress(
+		mylogger.LogRequest(hh.HandlePostURL()))))
 
-	router.HandleFunc("/api/shorten", compressor.Decompress(
-		mylogger.LogRequest(hh.HandlePostAPIShorten())))
+	router.HandleFunc("/api/shorten", ba.CheckCookies(compressor.Decompress(
+		mylogger.LogRequest(hh.HandlePostAPIShorten()))))
 
 	router.HandleFunc("/ping", hh.HandlePing())
 
-	router.HandleFunc("/api/shorten/batch", compressor.Decompress(
-		mylogger.LogRequest(hh.HandlePostAPIShortenBatch())))
+	router.HandleFunc("/api/shorten/batch", ba.CheckCookies(compressor.Decompress(
+		mylogger.LogRequest(hh.HandlePostAPIShortenBatch()))))
+
+	router.HandleFunc("/api/user/urls", ba.Authenticate(mylogger.LogRequest(hh.HandleGetApiUserURLs())))
 
 	err = http.ListenAndServe(s.Host, router)
 	if err != nil {

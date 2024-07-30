@@ -14,6 +14,7 @@ type SimpleServer struct {
 	Host,
 	BaseURL string
 	URLmap    map[string]string
+	UserURLS  map[string][]string
 	ID        int64
 	Storage   *os.File
 	Config    config.Config

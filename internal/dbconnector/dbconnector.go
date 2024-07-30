@@ -8,8 +8,8 @@ import (
 )
 
 const (
-	createQuery    = "CREATE TABLE IF NOT EXISTS url (short varchar, origin varchar unique)"
-	insertQuery    = "INSERT INTO url (short, origin) VALUES ($1, $2)"
+	createQuery    = "CREATE TABLE IF NOT EXISTS url (short varchar, origin varchar unique, user_id varchar)"
+	insertQuery    = "INSERT INTO url (short, origin, user_id) VALUES ($1, $2, $3)"
 	selectQuery    = "SELECT * FROM url"
 	selectShortURL = "SELECT short FROM url WHERE origin=$1"
 )
@@ -18,6 +18,7 @@ type Connector struct {
 	DatabaseDSN string
 	LastResult  string
 	URLmap      map[string]string
+	UserURLS    map[string][]string
 	DB          *sql.DB
 	Z           *mylogger.Mylogger
 }
@@ -54,8 +55,8 @@ func (c *Connector) CreateTable(db *sql.DB) error {
 	return nil
 }
 
-func (c *Connector) InsertURL(db *sql.DB, key, value string) error {
-	_, err := db.Exec(insertQuery, key, value)
+func (c *Connector) InsertURL(db *sql.DB, key, value, userID string) error {
+	_, err := db.Exec(insertQuery, key, value, userID)
 	if err != nil {
 		c.Z.LogError(err)
 		return err
@@ -72,15 +73,20 @@ func (c *Connector) ReadFromDB(db *sql.DB) error {
 		return rows.Err()
 	}
 	c.URLmap = make(map[string]string)
+	c.UserURLS = make(map[string][]string)
 	for rows.Next() {
-		var short, origin string
-		rows.Scan(&short, &origin)
+		var short, origin, userID string
+		rows.Scan(&short, &origin, &userID)
 		c.URLmap[short] = origin
+		if _, ok := c.UserURLS[userID]; !ok {
+			c.UserURLS[userID] = make([]string, 0)
+		}
+		c.UserURLS[userID] = append(c.UserURLS[userID], short)
 	}
 	return nil
 }
 
-func (c *Connector) InsertBatchToDatabase(db *sql.DB, data map[string]string) error {
+func (c *Connector) InsertBatchToDatabase(db *sql.DB, data map[string]string, userID string) error {
 	stmt, err := db.Prepare(insertQuery)
 	if err != nil {
 		return err
@@ -90,7 +96,7 @@ func (c *Connector) InsertBatchToDatabase(db *sql.DB, data map[string]string) er
 		if err != nil {
 			continue
 		}
-		_, err = stmt.Exec(key, val)
+		_, err = stmt.Exec(key, val, userID)
 		if err != nil {
 			tx.Rollback()
 			continue

@@ -16,6 +16,7 @@ import (
 	"shortener/internal/mylogger"
 	server "shortener/internal/server/serverTypes"
 	"strconv"
+	"strings"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/jackc/pgerrcode"
@@ -48,6 +49,25 @@ type HandlerHelper struct {
 	Connector *dbconnector.Connector
 	Z         mylogger.Mylogger
 	Router    *chi.Mux
+	UserURLS  map[string][]string
+}
+
+func (hh *HandlerHelper) GetUserIDFromCookie(w http.ResponseWriter, r *http.Request) string {
+	cookie := w.Header().Get("Set-Cookie")
+	if cookie == "" {
+		cookies, _ := r.Cookie("user_id")
+		cookie = cookies.Value
+	}
+	temp := strings.Split(cookie, " ")
+	userID, _ := strings.CutPrefix("user_id=", temp[0])
+	return userID
+}
+
+func (hh *HandlerHelper) AddUserURL(userID string, url string) {
+	if _, ok := hh.UserURLS[userID]; !ok {
+		hh.UserURLS[userID] = make([]string, 0)
+	}
+	hh.UserURLS[userID] = append(hh.UserURLS[userID], url)
 }
 
 func (hh *HandlerHelper) ShortenURL() string {
@@ -90,7 +110,9 @@ func (hh *HandlerHelper) HandlePostURL() http.HandlerFunc {
 		if hh.Server.BaseURL != "" {
 			baseURL = hh.Server.BaseURL + "/"
 		}
-		err = hh.WriteToStorage(shortURL, string(b))
+		userID := hh.GetUserIDFromCookie(w, r)
+		err = hh.WriteToStorage(shortURL, string(b), userID)
+		hh.AddUserURL(userID, shortURL)
 		if err != nil {
 			var pqErr *pq.Error
 			if hh.Config.StorageType == config.Database && errors.As(err, &pqErr) {
@@ -171,8 +193,9 @@ func (hh *HandlerHelper) HandlePostAPIShorten() http.HandlerFunc {
 		if hh.Server.BaseURL != "" {
 			baseURL = hh.Server.BaseURL + "/"
 		}
-		err = hh.WriteToStorage(shortURL, string(b))
-
+		userID := hh.GetUserIDFromCookie(w, r)
+		err = hh.WriteToStorage(shortURL, string(b), userID)
+		hh.AddUserURL(userID, shortURL)
 		if err != nil {
 			var pqErr *pq.Error
 			if hh.Config.StorageType == config.Database && errors.As(err, &pqErr) {
@@ -229,12 +252,12 @@ func (hh *HandlerHelper) HandlePing() http.HandlerFunc {
 	}
 }
 
-func (hh *HandlerHelper) WriteToStorage(shortened string, origin string) error {
+func (hh *HandlerHelper) WriteToStorage(shortened string, origin string, userID string) error {
 	var err error
 	switch hh.Config.StorageType {
 	case config.Database:
 		err = hh.Connector.Connect(func(db *sql.DB, args ...interface{}) error {
-			return hh.Connector.InsertURL(db, shortened, origin)
+			return hh.Connector.InsertURL(db, shortened, origin, userID)
 		})
 	case config.File:
 		err = WriteToFileStorage(hh.Server.Storage, origin, shortened, hh.Server.ID)
@@ -287,7 +310,7 @@ func (hh *HandlerHelper) HandlePostAPIShortenBatch() http.HandlerFunc {
 			hh.Server.URLmap[shortURL] = val.URL
 			data[shortURL] = val.URL
 			responseData[shortURL] = val.CorrelationID
-
+			hh.AddUserURL(hh.GetUserIDFromCookie(w, r), shortURL)
 			if hh.Config.StorageType == config.File {
 				err = WriteToFileStorage(hh.Server.Storage, val.URL, shortURL, hh.Server.ID)
 				if err != nil {
@@ -300,7 +323,7 @@ func (hh *HandlerHelper) HandlePostAPIShortenBatch() http.HandlerFunc {
 
 		if hh.Config.StorageType == config.Database {
 			err := hh.Connector.Connect(func(db *sql.DB, args ...interface{}) error {
-				return hh.Connector.InsertBatchToDatabase(db, data)
+				return hh.Connector.InsertBatchToDatabase(db, data, hh.GetUserIDFromCookie(w, r))
 			})
 			if err != nil {
 				hh.Z.LogError(err)
@@ -319,6 +342,42 @@ func (hh *HandlerHelper) HandlePostAPIShortenBatch() http.HandlerFunc {
 		w.Header().Set("Content-Type", "application/json")
 		w.Header().Set("Content-Length", strconv.FormatInt(int64(len(respBody)), 10))
 		w.WriteHeader(http.StatusCreated)
+		w.Write([]byte(respBody))
+	}
+}
+
+func (hh *HandlerHelper) HandleGetApiUserURLs() http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		userID := hh.GetUserIDFromCookie(w, r)
+		if _, ok := hh.UserURLS[userID]; !ok {
+			w.WriteHeader(http.StatusNoContent)
+			return
+		}
+		type data struct {
+			Short    string `json:"short_url"`
+			Original string `json:"original_url"`
+		}
+		type allData struct {
+			AllData []data
+		}
+		var ad allData
+		ad.AllData = make([]data, 0)
+		for _, val := range hh.UserURLS[userID] {
+			original := hh.Server.URLmap[val]
+			d := data{
+				Original: original,
+				Short:    val,
+			}
+			ad.AllData = append(ad.AllData, d)
+		}
+		respBody, err := json.MarshalIndent(ad.AllData, "", "	")
+		if err != nil {
+			http.Error(w, "Unable to marshal response", http.StatusInternalServerError)
+			return
+		}
+		w.Header().Set("Content-Type", "application/json")
+		w.Header().Set("Content-Length", strconv.FormatInt(int64(len(respBody)), 10))
+		w.WriteHeader(http.StatusOK)
 		w.Write([]byte(respBody))
 	}
 }
