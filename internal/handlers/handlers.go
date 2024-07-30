@@ -365,11 +365,15 @@ func (hh *HandlerHelper) HandleGetAPIUserURLs() http.HandlerFunc {
 		}
 		var ad allData
 		ad.AllData = make([]data, 0)
+		var baseURL string
+		if hh.Server.BaseURL != "" {
+			baseURL = hh.Server.BaseURL + "/"
+		}
 		for _, val := range hh.UserURLS[userID] {
 			original := hh.Server.URLmap[val]
 			d := data{
 				Original: original,
-				Short:    val,
+				Short:    "http://" + hh.Server.Host + "/" + baseURL + val,
 			}
 			ad.AllData = append(ad.AllData, d)
 		}
