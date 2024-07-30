@@ -62,7 +62,7 @@ func (hh *HandlerHelper) GetUserIDFromCookie(w http.ResponseWriter, r *http.Requ
 		cookie = cookies.Value
 	}
 	temp := strings.Split(cookie, " ")
-	userID, _ := strings.CutPrefix("user_id=", temp[0])
+	userID, _ := strings.CutPrefix(temp[0], "user_id=")
 	return userID
 }
 
