@@ -2,8 +2,10 @@ package dbconnector
 
 import (
 	"database/sql"
+	"fmt"
 	"shortener/internal/mylogger"
 
+	"github.com/lib/pq"
 	_ "github.com/lib/pq"
 )
 
@@ -90,14 +92,21 @@ func (c *Connector) ReadFromDB(db *sql.DB) error {
 }
 
 func (c *Connector) UpdateOnDelete(db *sql.DB, userID string, urls chan string) error {
-	stmt, err := db.Prepare(updateOnDeleteQuery)
+	tx, _ := db.Begin()
+	stmt, err := tx.Prepare(pq.CopyIn("url", "short"))
 	if err != nil {
 		return err
 	}
+	counter := 0
 	for {
 		val, ok := <-urls
-		stmt.Exec(val, userID)
+		stmt.Exec(val)
+		fmt.Print(counter, " ")
+		counter++
 		if !ok {
+			stmt.Exec()
+			tx.Commit()
+			fmt.Println("done")
 			break
 		}
 	}
