@@ -2,7 +2,6 @@ package dbconnector
 
 import (
 	"database/sql"
-	"fmt"
 	"shortener/internal/mylogger"
 
 	_ "github.com/lib/pq"
@@ -95,9 +94,9 @@ func (c *Connector) UpdateOnDelete(db *sql.DB, userID string, urls chan string) 
 	if err != nil {
 		return err
 	}
-	for val, ok := <-urls; ok; {
+	for {
+		val, ok := <-urls
 		stmt.Exec(val, userID)
-		fmt.Println("deleted", val)
 		if !ok {
 			break
 		}

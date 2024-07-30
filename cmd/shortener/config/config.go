@@ -24,7 +24,7 @@ const (
 	defaultHost        = "localhost:8080"
 	defaultBaseURL     = ""
 	defaultURLstorage  = ""
-	defaultDatabaseDSN = ""
+	defaultDatabaseDSN = "user=postgres password=postgres host=localhost"
 	defaultSecretKey   = "cookieinthejar"
 )
 
