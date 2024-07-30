@@ -435,6 +435,7 @@ func (hh *HandlerHelper) HandleDeleteAPIUserURLs() http.HandlerFunc {
 				hh.Server.URLsToUpdate <- val
 			}
 			close(outChan)
+			wg.Done()
 		}()
 		if hh.Config.StorageType == config.Database {
 			go func() {
