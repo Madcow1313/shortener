@@ -56,11 +56,13 @@ func TestHandleMainPage(t *testing.T) {
 		},
 	}
 	var hh HandlerHelper
+	hh.UserURLS = make(map[string][]string)
 	for _, tt := range positiveTests {
 		t.Run(tt.name, func(t *testing.T) {
 			request := httptest.NewRequest(http.MethodPost, "/", strings.NewReader("google.com"))
 			w := httptest.NewRecorder()
-			hh.Server = &server.SimpleServer{Host: "213", BaseURL: "/", URLmap: map[string]string{}}
+			hh.Server = &server.SimpleServer{Host: "213", BaseURL: "/", URLmap: map[string]string{},
+				UserURLS: map[string][]string{}}
 			hh.Router = chi.NewRouter()
 			f := hh.HandlePostURL()
 			f(w, request)
@@ -186,6 +188,7 @@ func TestHandleApiShorten(t *testing.T) {
 		},
 	}
 	var hh HandlerHelper
+	hh.UserURLS = map[string][]string{}
 	for _, tt := range positiveTests {
 		t.Run(tt.name, func(t *testing.T) {
 			request := httptest.NewRequest(http.MethodPost, "/", strings.NewReader(`
@@ -193,7 +196,7 @@ func TestHandleApiShorten(t *testing.T) {
   				"url": "https://practicum.yandex.ru"
 			} `))
 			w := httptest.NewRecorder()
-			hh.Server = &server.SimpleServer{Host: "213", BaseURL: "/", URLmap: map[string]string{}}
+			hh.Server = &server.SimpleServer{Host: "213", BaseURL: "/", URLmap: map[string]string{}, UserURLS: map[string][]string{}}
 			hh.Router = chi.NewRouter()
 			f := hh.HandlePostAPIShorten()
 			f(w, request)

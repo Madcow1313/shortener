@@ -55,7 +55,10 @@ type HandlerHelper struct {
 func (hh *HandlerHelper) GetUserIDFromCookie(w http.ResponseWriter, r *http.Request) string {
 	cookie := w.Header().Get("Set-Cookie")
 	if cookie == "" {
-		cookies, _ := r.Cookie("user_id")
+		cookies, err := r.Cookie("user_id")
+		if err != nil {
+			return ""
+		}
 		cookie = cookies.Value
 	}
 	temp := strings.Split(cookie, " ")
@@ -346,7 +349,7 @@ func (hh *HandlerHelper) HandlePostAPIShortenBatch() http.HandlerFunc {
 	}
 }
 
-func (hh *HandlerHelper) HandleGetApiUserURLs() http.HandlerFunc {
+func (hh *HandlerHelper) HandleGetAPIUserURLs() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		userID := hh.GetUserIDFromCookie(w, r)
 		if _, ok := hh.UserURLS[userID]; !ok {

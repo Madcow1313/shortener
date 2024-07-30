@@ -104,7 +104,7 @@ func (s *SimpleServer) RunServer() {
 	router.HandleFunc("/api/shorten/batch", ba.CheckCookies(compressor.Decompress(
 		mylogger.LogRequest(hh.HandlePostAPIShortenBatch()))))
 
-	router.HandleFunc("/api/user/urls", ba.Authenticate(mylogger.LogRequest(hh.HandleGetApiUserURLs())))
+	router.HandleFunc("/api/user/urls", ba.Authenticate(mylogger.LogRequest(hh.HandleGetAPIUserURLs())))
 
 	err = http.ListenAndServe(s.Host, router)
 	if err != nil {
