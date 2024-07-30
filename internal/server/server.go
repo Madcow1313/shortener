@@ -79,7 +79,7 @@ func (s *SimpleServer) RunServer() {
 		ID:      s.ID,
 		Config:  s.Config,
 	}
-	serv.URLsToUpdate = make(chan string)
+	serv.URLsToUpdate = make(chan string, 100)
 	defer close(serv.URLsToUpdate)
 	hh.Server = &serv
 	hh.Z = mylogger
