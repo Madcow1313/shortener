@@ -3,7 +3,6 @@ package dbconnector
 import (
 	"database/sql"
 	"shortener/internal/mylogger"
-	"sync"
 
 	_ "github.com/lib/pq"
 )
@@ -91,9 +90,9 @@ func (c *Connector) ReadFromDB(db *sql.DB) error {
 }
 
 func (c *Connector) UpdateOnDelete(db *sql.DB, userID string, urls chan string) error {
-	var m sync.Mutex
-	m.Lock()
-	defer m.Unlock()
+	// var m sync.Mutex
+	// m.Lock()
+	// defer m.Unlock()
 	stmt, err := db.Prepare(updateOnDeleteQuery)
 	if err != nil {
 		return err
