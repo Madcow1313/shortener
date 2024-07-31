@@ -1,9 +1,10 @@
 package dbconnector
 
 import (
+	"context"
 	"database/sql"
-	"fmt"
 	"shortener/internal/mylogger"
+	"time"
 
 	"github.com/lib/pq"
 )
@@ -90,7 +91,9 @@ func (c *Connector) ReadFromDB(db *sql.DB) error {
 	return nil
 }
 
-func (c *Connector) UpdateOnDelete(db *sql.DB, urls chan string) error {
+func (c *Connector) UpdateOnDelete(db *sql.DB, ctx context.Context, urls chan string) error {
+	ctxChild, cancel := context.WithTimeout(ctx, time.Second*2)
+	defer cancel()
 	tx, _ := db.Begin()
 	stmt, err := tx.Prepare(pq.CopyIn("url", "short"))
 	if err != nil {
@@ -98,19 +101,17 @@ func (c *Connector) UpdateOnDelete(db *sql.DB, urls chan string) error {
 	}
 	counter := 0
 	for {
-		val, ok := <-urls
-		stmt.Exec(val)
-		counter++
-		if !ok {
+		select {
+		case <-ctxChild.Done():
 			stmt.Exec()
 			tx.Commit()
-			fmt.Println("done")
-			break
+			return nil
+		default:
+			val := <-urls
+			stmt.Exec(val)
+			counter++
 		}
 	}
-	// stmt.Exec()
-	// tx.Commit()
-	return nil
 }
 
 func (c *Connector) InsertBatchToDatabase(db *sql.DB, data map[string]string, userID string) error {

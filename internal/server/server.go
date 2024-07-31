@@ -2,6 +2,7 @@ package server
 
 import (
 	"bufio"
+	"context"
 	"database/sql"
 	"encoding/json"
 	"log"
@@ -109,9 +110,11 @@ func (s *SimpleServer) RunServer() {
 	router.Get("/api/user/urls", ba.Authenticate(mylogger.LogRequest(hh.HandleGetAPIUserURLs())))
 
 	go func() {
-		hh.Connector.Connect(func(db *sql.DB, args ...interface{}) error {
-			return hh.Connector.UpdateOnDelete(db, hh.Server.URLsToUpdate)
-		})
+		for {
+			hh.Connector.Connect(func(db *sql.DB, args ...interface{}) error {
+				return hh.Connector.UpdateOnDelete(db, context.Background(), hh.Server.URLsToUpdate)
+			})
+		}
 	}()
 
 	router.Delete("/api/user/urls", ba.Authenticate(mylogger.LogRequest(hh.HandleDeleteAPIUserURLs())))
