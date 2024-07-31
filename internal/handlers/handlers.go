@@ -18,6 +18,7 @@ import (
 	server "shortener/internal/server/serverTypes"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/jackc/pgerrcode"
@@ -430,15 +431,18 @@ func (hh *HandlerHelper) HandleDeleteAPIUserURLs() http.HandlerFunc {
 		// 		return hh.Connector.InsertURL(db, val, s, "bc")
 		// 	})
 		// }
-
+		ch := make(chan string, len(urls))
 		go func() {
 			for _, val := range urls {
-				hh.Server.URLsToUpdate <- val
+				ch <- val
 			}
+			close(ch)
 		}()
 		go func() {
+			ctxChild, cancel := context.WithTimeout(context.Background(), time.Second*2)
+			defer cancel()
 			hh.Connector.Connect(func(db *sql.DB, args ...interface{}) error {
-				return hh.Connector.UpdateOnDelete(db, context.Background(), hh.Server.URLsToUpdate)
+				return hh.Connector.UpdateOnDelete(db, ctxChild, ch)
 			})
 
 		}()

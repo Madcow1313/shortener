@@ -4,7 +4,6 @@ import (
 	"context"
 	"database/sql"
 	"shortener/internal/mylogger"
-	"time"
 
 	"github.com/lib/pq"
 )
@@ -92,25 +91,27 @@ func (c *Connector) ReadFromDB(db *sql.DB) error {
 }
 
 func (c *Connector) UpdateOnDelete(db *sql.DB, ctx context.Context, urls chan string) error {
-	ctxChild, cancel := context.WithTimeout(ctx, time.Second*2)
-	defer cancel()
 	tx, _ := db.Begin()
-	stmt, err := tx.Prepare(pq.CopyIn("url", "short"))
+	stmt, err := tx.Prepare(updateOnDeleteQuery)
 	if err != nil {
 		return err
 	}
-	counter := 0
 	for {
 		select {
-		case <-ctxChild.Done():
+		case <-ctx.Done():
 			stmt.Exec()
 			stmt.Close()
 			tx.Commit()
 			return nil
 		default:
-			val := <-urls
+			val, ok := <-urls
 			stmt.Exec(val)
-			counter++
+			if !ok {
+				stmt.Exec()
+				stmt.Close()
+				tx.Commit()
+				return nil
+			}
 		}
 	}
 }
