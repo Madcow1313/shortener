@@ -108,6 +108,12 @@ func (s *SimpleServer) RunServer() {
 
 	router.Get("/api/user/urls", ba.Authenticate(mylogger.LogRequest(hh.HandleGetAPIUserURLs())))
 
+	go func() {
+		hh.Connector.Connect(func(db *sql.DB, args ...interface{}) error {
+			return hh.Connector.UpdateOnDelete(db, hh.Server.URLsToUpdate)
+		})
+	}()
+
 	router.Delete("/api/user/urls", ba.Authenticate(hh.HandleDeleteAPIUserURLs()))
 	err = http.ListenAndServe(s.Host, router)
 	if err != nil {
