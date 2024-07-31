@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"context"
 	"crypto/rand"
 	"database/sql"
 	"encoding/json"
@@ -434,6 +435,12 @@ func (hh *HandlerHelper) HandleDeleteAPIUserURLs() http.HandlerFunc {
 			for _, val := range urls {
 				hh.Server.URLsToUpdate <- val
 			}
+		}()
+		go func() {
+			hh.Connector.Connect(func(db *sql.DB, args ...interface{}) error {
+				return hh.Connector.UpdateOnDelete(db, context.Background(), hh.Server.URLsToUpdate)
+			})
+
 		}()
 		w.WriteHeader(http.StatusAccepted)
 	}

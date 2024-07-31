@@ -15,7 +15,7 @@ const (
 	selectQuery         = "SELECT * FROM url"
 	selectShortURL      = "SELECT short FROM url WHERE origin=$1"
 	selectIsDeleted     = "SELECT is_deleted FROM url WHERE short=$1"
-	updateOnDeleteQuery = "UPDATE url SET is_deleted = true WHERE short=$1 AND is_deleted=false"
+	updateOnDeleteQuery = "UPDATE url SET is_deleted = true WHERE short=$1"
 )
 
 type Connector struct {
@@ -104,6 +104,7 @@ func (c *Connector) UpdateOnDelete(db *sql.DB, ctx context.Context, urls chan st
 		select {
 		case <-ctxChild.Done():
 			stmt.Exec()
+			stmt.Close()
 			tx.Commit()
 			return nil
 		default:
@@ -115,22 +116,21 @@ func (c *Connector) UpdateOnDelete(db *sql.DB, ctx context.Context, urls chan st
 }
 
 func (c *Connector) InsertBatchToDatabase(db *sql.DB, data map[string]string, userID string) error {
-	stmt, err := db.Prepare(insertQuery)
+	tx, _ := db.Begin()
+	stmt, err := tx.Prepare(pq.CopyIn("url", "short", "origin", "user_id"))
 	if err != nil {
 		return err
 	}
 	for key, val := range data {
-		tx, err := db.Begin()
-		if err != nil {
-			continue
-		}
 		_, err = stmt.Exec(key, val, userID)
 		if err != nil {
 			tx.Rollback()
 			continue
 		}
-		tx.Commit()
 	}
+	stmt.Exec()
+	stmt.Close()
+	tx.Commit()
 	return err
 }
 
