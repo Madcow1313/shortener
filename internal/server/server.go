@@ -114,7 +114,7 @@ func (s *SimpleServer) RunServer() {
 		})
 	}()
 
-	router.Delete("/api/user/urls", ba.Authenticate(hh.HandleDeleteAPIUserURLs()))
+	router.Delete("/api/user/urls", ba.Authenticate(mylogger.LogRequest(hh.HandleDeleteAPIUserURLs())))
 	err = http.ListenAndServe(s.Host, router)
 	if err != nil {
 		mylogger.LogError(err)
