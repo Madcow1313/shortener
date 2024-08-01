@@ -43,9 +43,13 @@ func (hh *HandlerHelper) HandleDeleteAPIUserURLs() http.HandlerFunc {
 			case <-ctxChild.Done():
 				return
 			default:
-				hh.Connector.ConnectToDB(func(db *sql.DB, args ...interface{}) error {
+				err = hh.Connector.ConnectToDB(func(db *sql.DB, args ...interface{}) error {
 					return hh.Connector.UpdateIsDeletedColumn(db, ch)
 				})
+				if err != nil {
+					hh.ZapLogger.LogError(err)
+					return
+				}
 			}
 
 		}()
