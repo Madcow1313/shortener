@@ -46,13 +46,13 @@ func (hh *HandlerHelper) HandlePostURL() http.HandlerFunc {
 		var pqErr *pq.Error
 		if err != nil && errors.As(err, &pqErr) && pqErr.Code == pgerrcode.UniqueViolation {
 			hh.ZapLogger.LogError(err)
-			err = hh.Connector.ConnectToDB(func(db *sql.DB, args ...interface{}) error {
+			hh.Connector.ConnectToDB(func(db *sql.DB, args ...interface{}) error {
 				return hh.Connector.SelectShortURL(db, string(b))
 			})
-			if err != nil {
-				http.Error(w, selectShortError, http.StatusInternalServerError)
-				return
-			}
+			// if err != nil {
+			// 	http.Error(w, selectShortError, http.StatusInternalServerError)
+			// 	return
+			// }
 			shortURL = hh.Connector.LastResult
 			inDatabase = true
 		} else if err != nil {
