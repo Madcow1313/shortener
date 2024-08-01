@@ -21,8 +21,7 @@ func (hh *HandlerHelper) GetUserIDFromCookie(w http.ResponseWriter, r *http.Requ
 		}
 		cookie = cookies.Value
 	}
-	temp := strings.Split(cookie, " ")
-	return strings.TrimPrefix(temp[0], userCookie)
+	return strings.TrimPrefix(cookie, userCookie+"=")
 }
 
 func (hh *HandlerHelper) AddUserURL(userID string, url string) {
