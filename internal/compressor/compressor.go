@@ -18,6 +18,8 @@ type GzipReader struct {
 	zr *gzip.Reader
 }
 
+type Compressor struct{}
+
 func (grw *GzipResponseWriter) Write(b []byte) (int, error) {
 	comp := gzip.NewWriter(grw.ResponseWriter)
 	size, err := comp.Write(b)
@@ -56,7 +58,7 @@ func (gr *GzipReader) Close() (err error) {
 	return gr.zr.Close()
 }
 
-func Decompress(h http.HandlerFunc) http.HandlerFunc {
+func (c *Compressor) Decompress(h http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if !strings.Contains(r.Header.Get("Content-Encoding"), "gzip") {
 			h(w, r)
@@ -74,7 +76,7 @@ func Decompress(h http.HandlerFunc) http.HandlerFunc {
 	}
 }
 
-func Compress(h http.HandlerFunc) http.HandlerFunc {
+func (c *Compressor) Compress(h http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if !strings.Contains(r.Header.Get("Accept-Encoding"), "gzip") {
 			h(w, r)

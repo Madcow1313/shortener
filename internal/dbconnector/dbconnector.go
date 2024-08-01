@@ -1,11 +1,10 @@
 package dbconnector
 
 import (
-	"context"
 	"database/sql"
 	"shortener/internal/mylogger"
 
-	"github.com/lib/pq"
+	_ "github.com/lib/pq"
 )
 
 const (
@@ -31,7 +30,7 @@ func NewConnector(databaseDSN string) *Connector {
 	return &Connector{DatabaseDSN: databaseDSN}
 }
 
-func (c *Connector) Connect(connectFunc func(db *sql.DB, args ...interface{}) error) error {
+func (c *Connector) ConnectToDB(connectFunc func(db *sql.DB, args ...interface{}) error) error {
 	if c.DB == nil {
 		db, err := sql.Open("postgres", c.DatabaseDSN)
 		if err != nil {
@@ -53,108 +52,6 @@ func (c *Connector) Connect(connectFunc func(db *sql.DB, args ...interface{}) er
 
 func (c *Connector) CreateTable(db *sql.DB) error {
 	_, err := db.Exec(createQuery)
-	if err != nil {
-		return err
-	}
-	return nil
-}
-
-func (c *Connector) InsertURL(db *sql.DB, key, value, userID string) error {
-	_, err := db.Exec(insertQuery, key, value, userID)
-	if err != nil {
-		c.Z.LogError(err)
-		return err
-	}
-	return nil
-}
-
-func (c *Connector) ReadFromDB(db *sql.DB) error {
-	rows, err := db.Query(selectQuery)
-	if err != nil {
-		return err
-	}
-	if rows.Err() != nil {
-		return rows.Err()
-	}
-	c.URLmap = make(map[string]string)
-	c.UserURLS = make(map[string][]string)
-	for rows.Next() {
-		var short, origin, userID string
-		rows.Scan(&short, &origin, &userID)
-		c.URLmap[short] = origin
-		if _, ok := c.UserURLS[userID]; !ok {
-			c.UserURLS[userID] = make([]string, 0)
-		}
-		c.UserURLS[userID] = append(c.UserURLS[userID], short)
-	}
-	return nil
-}
-
-func (c *Connector) UpdateOnDelete(db *sql.DB, ctx context.Context, urls chan string) error {
-	tx, _ := db.Begin()
-	stmt, err := tx.Prepare(updateOnDeleteQuery)
-	if err != nil {
-		return err
-	}
-	for {
-		select {
-		case <-ctx.Done():
-			stmt.Exec()
-			stmt.Close()
-			tx.Commit()
-			return nil
-		default:
-			val, ok := <-urls
-			stmt.Exec(val)
-			if !ok {
-				stmt.Exec()
-				stmt.Close()
-				tx.Commit()
-				return nil
-			}
-		}
-	}
-}
-
-func (c *Connector) InsertBatchToDatabase(db *sql.DB, data map[string]string, userID string) error {
-	tx, _ := db.Begin()
-	stmt, err := tx.Prepare(pq.CopyIn("url", "short", "origin", "user_id"))
-	if err != nil {
-		return err
-	}
-	for key, val := range data {
-		_, err = stmt.Exec(key, val, userID)
-		if err != nil {
-			tx.Rollback()
-			continue
-		}
-	}
-	stmt.Exec()
-	stmt.Close()
-	tx.Commit()
-	return err
-}
-
-func (c *Connector) SelectShortURL(db *sql.DB, origin string) error {
-	r, err := db.Query(selectShortURL, origin)
-	if err != nil || r.Err() != nil {
-		return err
-	}
-	r.Next()
-	err = r.Scan(&c.LastResult)
-	if err != nil {
-		return err
-	}
-	return nil
-}
-
-func (c *Connector) IsShortDeleted(db *sql.DB, short string) error {
-	r, err := db.Query(selectIsDeleted, short)
-	if err != nil || r.Err() != nil {
-		return err
-	}
-	r.Next()
-	err = r.Scan(&c.IsDeleted)
 	if err != nil {
 		return err
 	}
