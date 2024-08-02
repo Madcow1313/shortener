@@ -44,19 +44,26 @@ func (hh *HandlerHelper) HandlePostURL() http.HandlerFunc {
 		err = hh.WriteToStorage(shortURL, string(b), userID)
 		hh.AddUserURL(userID, shortURL)
 		var pqErr *pq.Error
-		if err != nil && hh.Config.StorageType == config.Database {
-			if errors.As(err, &pqErr) && pqErr.Code == pgerrcode.UniqueViolation {
-				hh.ZapLogger.LogError(err)
-				hh.Connector.ConnectToDB(func(db *sql.DB, args ...interface{}) error {
-					return hh.Connector.SelectShortURL(db, string(b))
-				})
+		if err != nil {
+			if hh.Config.StorageType == config.Database && errors.As(err, &pqErr) {
+				if pqErr.Code == pgerrcode.UniqueViolation {
+					hh.ZapLogger.LogError(err)
+					err = hh.Connector.ConnectToDB(func(db *sql.DB, args ...interface{}) error {
+						return hh.Connector.SelectShortURL(db, string(b))
+					})
+					if err != nil {
+						hh.ZapLogger.LogError(err)
+						http.Error(w, fmt.Errorf("error while working with database: %w", err).Error(), http.StatusInternalServerError)
+						return
+					}
+					shortURL = hh.Connector.LastResult
+					inDatabase = true
+				}
 			} else {
 				hh.ZapLogger.LogError(err)
 				http.Error(w, fmt.Errorf("error while working with database: %w", err).Error(), http.StatusInternalServerError)
 				return
 			}
-			shortURL = hh.Connector.LastResult
-			inDatabase = true
 		} else {
 			hh.Server.ID++
 			hh.Server.URLmap[shortURL] = string(b)
