@@ -37,7 +37,7 @@ func (hh *HandlerHelper) HandleDeleteAPIUserURLs() http.HandlerFunc {
 			close(ch)
 		}()
 		go func() {
-			ctxChild, cancel := context.WithTimeout(context.Background(), time.Second*2)
+			ctxChild, cancel := context.WithTimeout(context.Background(), time.Second)
 			defer cancel()
 			err = hh.Connector.ConnectToDB(func(db *sql.DB, args ...interface{}) error {
 				return hh.Connector.UpdateIsDeletedColumn(db, ctxChild, ch)
