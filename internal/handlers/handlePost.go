@@ -196,6 +196,7 @@ func (hh *HandlerHelper) HandlePostAPIShortenBatch() http.HandlerFunc {
 			data[shortURL] = val.URL
 			responseData[shortURL] = val.CorrelationID
 			hh.AddUserURL(hh.GetUserIDFromCookie(w, r), shortURL)
+
 			if hh.Config.StorageType == config.File {
 				err = WriteToFileStorage(hh.Server.Storage, val.URL, shortURL, hh.Server.ID)
 				if err != nil {

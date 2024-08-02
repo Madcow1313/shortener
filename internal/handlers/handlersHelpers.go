@@ -4,6 +4,7 @@ import (
 	"crypto/rand"
 	"database/sql"
 	"encoding/json"
+	"errors"
 	"math/big"
 	"net/http"
 	"os"
@@ -16,7 +17,7 @@ func (hh *HandlerHelper) GetUserIDFromCookie(w http.ResponseWriter, r *http.Requ
 	cookie := w.Header().Get("Set-Cookie")
 	if cookie == "" {
 		cookies, err := r.Cookie(userCookie)
-		if err != nil {
+		if errors.Is(err, http.ErrNoCookie) {
 			return ""
 		}
 		cookie = cookies.Value

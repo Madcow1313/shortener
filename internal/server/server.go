@@ -74,7 +74,7 @@ func (s *SimpleServer) RouteHandlers(router *chi.Mux, hh handlers.HandlerHelper)
 	router.HandleFunc("/ping", hh.HandlePing())
 
 	router.Get("/api/user/urls", ba.AuthentificateUser(hh.ZapLogger.LogRequest(hh.HandleGetAPIUserURLs())))
-	router.Delete("/api/user/urls", (hh.ZapLogger.LogRequest(hh.HandleDeleteAPIUserURLs())))
+	router.Delete("/api/user/urls", ba.AuthentificateUser(hh.ZapLogger.LogRequest(hh.HandleDeleteAPIUserURLs())))
 }
 
 func (s *SimpleServer) RunServer() {

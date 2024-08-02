@@ -14,6 +14,7 @@ const (
 	selectShortURL      = "SELECT short FROM url WHERE origin=$1"
 	selectIsDeleted     = "SELECT is_deleted FROM url WHERE short=$1"
 	updateOnDeleteQuery = "UPDATE url SET is_deleted = true WHERE short=$1"
+	sqlDriver           = "postgres"
 )
 
 type Connector struct {
@@ -32,7 +33,7 @@ func NewConnector(databaseDSN string) *Connector {
 
 func (c *Connector) ConnectToDB(connectFunc func(db *sql.DB, args ...interface{}) error) error {
 	if c.DB == nil {
-		db, err := sql.Open("postgres", c.DatabaseDSN)
+		db, err := sql.Open(sqlDriver, c.DatabaseDSN)
 		if err != nil {
 			return err
 		}
