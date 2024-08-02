@@ -21,9 +21,6 @@ func (c *Connector) UpdateIsDeletedColumn(db *sql.DB, ctx context.Context, urls 
 			return err
 		}
 		if !ok {
-			if _, err = stmt.Exec(); err != nil {
-				return err
-			}
 			if stmt.Close() != nil {
 				return err
 			}

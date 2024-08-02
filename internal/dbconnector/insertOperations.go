@@ -31,9 +31,6 @@ func (c *Connector) InsertBatchToDatabase(db *sql.DB, data map[string]string, us
 			return err
 		}
 	}
-	if _, err = stmt.Exec(); err != nil {
-		return err
-	}
 	if stmt.Close() != nil {
 		return err
 	}
