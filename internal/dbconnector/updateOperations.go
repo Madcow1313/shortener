@@ -1,11 +1,12 @@
 package dbconnector
 
 import (
+	"context"
 	"database/sql"
 )
 
-func (c *Connector) UpdateIsDeletedColumn(db *sql.DB, urls chan string) error {
-	tx, err := db.Begin()
+func (c *Connector) UpdateIsDeletedColumn(db *sql.DB, ctx context.Context, urls chan string) error {
+	tx, err := db.BeginTx(ctx, nil)
 	if err != nil {
 		return err
 	}

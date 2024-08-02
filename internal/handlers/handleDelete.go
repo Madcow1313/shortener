@@ -39,19 +39,13 @@ func (hh *HandlerHelper) HandleDeleteAPIUserURLs() http.HandlerFunc {
 		go func() {
 			ctxChild, cancel := context.WithTimeout(context.Background(), time.Second*2)
 			defer cancel()
-			select {
-			case <-ctxChild.Done():
+			err = hh.Connector.ConnectToDB(func(db *sql.DB, args ...interface{}) error {
+				return hh.Connector.UpdateIsDeletedColumn(db, ctxChild, ch)
+			})
+			if err != nil {
+				hh.ZapLogger.LogError(err)
 				return
-			default:
-				err = hh.Connector.ConnectToDB(func(db *sql.DB, args ...interface{}) error {
-					return hh.Connector.UpdateIsDeletedColumn(db, ch)
-				})
-				if err != nil {
-					hh.ZapLogger.LogError(err)
-					return
-				}
 			}
-
 		}()
 		w.WriteHeader(http.StatusAccepted)
 	}
