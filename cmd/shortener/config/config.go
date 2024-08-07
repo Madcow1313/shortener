@@ -16,6 +16,7 @@ type Config struct {
 	BaseURL     string
 	URLStorage  string
 	DatabaseDSN string
+	SecretKey   string
 	StorageType int
 }
 
@@ -24,26 +25,43 @@ const (
 	defaultBaseURL     = ""
 	defaultURLstorage  = ""
 	defaultDatabaseDSN = ""
+	defaultSecretKey   = "cookieinthejar"
+
+	hostHint       = "address should be in format localhost:8080"
+	baseURLHint    = "base url should contain at least one character"
+	URLStorageHint = "file to store urls"
+	dbHint         = "database connection properties"
+	keyHint        = "key to check hash sum"
+
+	envServerAddress = "SERVER_ADDRESS"
+	envBaseURL       = "BASE_URL"
+	envDatabaseDSN   = "DATABASE_DSN"
+	envFilePath      = "FILE_STORAGE_PATH"
+	envKey           = "SECRET_KEY"
 )
 
 func (c *Config) SetConfigParameteres() {
-	flag.StringVar(&c.Host, "a", defaultHost, "address should be in format localhost:8080")
-	flag.StringVar(&c.BaseURL, "b", defaultBaseURL, "base url should contain at least one character")
-	flag.StringVar(&c.URLStorage, "f", defaultURLstorage, "file to store urls")
-	flag.StringVar(&c.DatabaseDSN, "d", defaultDatabaseDSN, "database connection properties")
+	flag.StringVar(&c.Host, "a", defaultHost, hostHint)
+	flag.StringVar(&c.BaseURL, "b", defaultBaseURL, baseURLHint)
+	flag.StringVar(&c.URLStorage, "f", defaultURLstorage, URLStorageHint)
+	flag.StringVar(&c.DatabaseDSN, "d", defaultDatabaseDSN, dbHint)
+	flag.StringVar(&c.SecretKey, "s", defaultSecretKey, keyHint)
 	flag.Parse()
 
-	if addr := os.Getenv("SERVER_ADDRESS"); addr != "" {
+	if addr := os.Getenv(envServerAddress); addr != "" {
 		c.Host = addr
 	}
-	if base := os.Getenv("BASE_URL"); base != "" {
+	if base := os.Getenv(envBaseURL); base != "" {
 		c.BaseURL = base
 	}
-	if databaseDSN := os.Getenv("DATABASE_DSN"); databaseDSN != "" {
+	if databaseDSN := os.Getenv(envDatabaseDSN); databaseDSN != "" {
 		c.DatabaseDSN = databaseDSN
 	}
-	if storage := os.Getenv("FILE_STORAGE_PATH"); storage != "" {
+	if storage := os.Getenv(envFilePath); storage != "" {
 		c.URLStorage = storage
+	}
+	if secretKey := os.Getenv(envKey); secretKey != "" {
+		c.SecretKey = secretKey
 	}
 
 	c.StorageType = Memory
